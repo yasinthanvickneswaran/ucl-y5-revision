@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Timetable – UCL Y5</title>
+<link rel="stylesheet" href="../assets/css/style.css"/>
+<style>
+.overall-prog { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; margin-bottom: 1.25rem; }
+.op-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); margin-bottom: 6px; }
+.op-bar { height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.op-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--purple), var(--teal)); transition: width 0.3s; }
+.op-nums { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.72rem; color: var(--text3); }
+
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.filt { padding: 5px 13px; font-size: 0.78rem; border: 0.5px solid var(--border2); border-radius: 20px; cursor: pointer; background: var(--surface); color: var(--text); transition: background 0.15s; }
+.filt.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+
+.day-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 13px 15px; transition: border-color 0.15s, opacity 0.2s; }
+.day-card:hover { border-color: var(--border2); }
+.day-card.done { opacity: 0.45; }
+.day-card.mod-b { border-left: 3px solid #7F77DD; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+
+.day-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; gap: 8px; }
+.day-num { font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+.day-date { font-size: 0.7rem; color: var(--text3); white-space: nowrap; padding-top: 1px; }
+.tags { margin-bottom: 7px; }
+
+.conditions { font-size: 0.75rem; color: #444440; line-height: 1.55; }
+.cond-item { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px; }
+.cond-item input[type=checkbox] { margin-top: 2px; cursor: pointer; accent-color: var(--purple); flex-shrink: 0; }
+
+.day-footer { margin-top: 9px; border-top: 0.5px solid var(--border); padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+.day-tip { font-size: 0.7rem; color: var(--text3); margin-top: 6px; font-style: italic; line-height: 1.5; padding: 5px 7px; background: var(--surface2); border-radius: 6px; border-left: 2px solid var(--border2); }
+
+.legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text2); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">UCL <span>Y5</span></a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="index.html" class="active">Timetable</a></li>
+      <li><a href="../sba/index.html">SBA Bank</a></li>
+    </ul>
+    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>30-Day Revision Timetable</h1>
+    <p>OSCEs: 30 June &nbsp;·&nbsp; 221 core conditions &nbsp;·&nbsp; Module B front-loaded (all new)</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-tile"><div class="stat-n" id="s-total">0</div><div class="stat-l">conditions done</div></div>
+    <div class="stat-tile"><div class="stat-n">221</div><div class="stat-l">total</div></div>
+    <div class="stat-tile"><div class="stat-n">30 Jun</div><div class="stat-l">OSCE date</div></div>
+    <div class="stat-tile"><div class="stat-n" id="s-days">—</div><div class="stat-l">days to go</div></div>
+  </div>
+
+  <div class="overall-prog">
+    <div class="op-label">Overall progress</div>
+    <div class="op-bar"><div class="op-fill" id="op-fill" style="width:0%"></div></div>
+    <div class="op-nums"><span id="op-done">0 / 221 conditions</span><span id="op-pct">0%</span></div>
+  </div>
+
+  <div class="legend">
+    <span style="font-size:0.72rem;color:var(--text3);margin-right:2px">Modules:</span>
+    <span class="leg"><span class="dot" style="background:#7F77DD"></span>B – WHMH (all new)</span>
+    <span class="leg"><span class="dot" style="background:#63A822"></span>A – CFH gap-fill</span>
+    <span class="leg"><span class="dot" style="background:#1D9E75"></span>C – HOPE gap-fill</span>
+    <span class="leg"><span class="dot" style="background:#EF9F27"></span>GP presentations</span>
+  </div>
+
+  <div class="filters">
+    <button class="filt active" onclick="filterDays('all',this)">All 30 days</button>
+    <button class="filt" onclick="filterDays('b',this)">Module B</button>
+    <button class="filt" onclick="filterDays('a',this)">Module A / C</button>
+    <button class="filt" onclick="filterDays('gp',this)">GP</button>
+    <button class="filt" onclick="filterDays('remaining',this)">Incomplete only</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="toast"></div>
+<script src="../assets/js/shared.js"></script>
+<script>
+const DAYS = [
+  {d:1,label:"Module B – OBG 1",date:"Apr 13",module:"b",tip:"All new. O&G is the heaviest B topic. Focus on early pregnancy emergencies.",conditions:["Ectopic pregnancy","Miscarriage","Hyperemesis gravidarum","Hypertensive disorders of pregnancy (pre-eclampsia, eclampsia)","Diabetes in pregnancy"]},
+  {d:2,label:"Module B – OBG 2",date:"Apr 14",module:"b",tip:"Intrapartum & acute obstetric emergencies — high-yield for OSCEs.",conditions:["Placenta praevia","Placental abruption","Cord prolapse","Amniotic fluid embolism","Sepsis in pregnancy & puerperium"]},
+  {d:3,label:"Module B – OBG 3",date:"Apr 15",module:"b",tip:"Fetal & neonatal complications of pregnancy.",conditions:["Fetal growth restriction","Prematurity","Congenital infections (TORCH)","Group B strep in pregnancy","Acute fatty liver of pregnancy"]},
+  {d:4,label:"Module B – OBG 4",date:"Apr 16",module:"b",tip:"Perinatal mental health is often in OSCEs. VTE in pregnancy carries marks in written.",conditions:["Perinatal mental health conditions","Mental/behavioural disorders in puerperium","Venous thromboembolism in pregnancy","Obstetric cholestasis","Intra-uterine death"]},
+  {d:5,label:"Module B – Gynaecology 1",date:"Apr 17",module:"b",tip:"Common benign gynaecological conditions — very OSCEable.",conditions:["Endometriosis","Fibroids","Adenomyosis","PCOS","Ovarian cysts (benign/malignant)"]},
+  {d:6,label:"Module B – Gynaecology 2",date:"Apr 18",module:"b",tip:"Cancers + PID. HPV overlaps with sexual health — link the two.",conditions:["Endometrial cancer","Cervical cancer","Ovarian cancer","Vulval cancer","Pelvic inflammatory disease (PID)"]},
+  {d:7,label:"Module B – Gynaecology 3 + Misc",date:"Apr 19",module:"b",tip:"Wrap up remaining O&G. Menopause — popular OSCE station.",conditions:["Obesity in pregnancy","Neonatal death (O&G context)","Menopause","Premature ovarian insufficiency","HPV (gynaecological context)","Vaginismus"]},
+  {d:8,label:"Module B – Sexual Health 1",date:"Apr 20",module:"b",tip:"STIs — know screening, first-line treatment, and partner notification.",conditions:["Chlamydia","Gonorrhoea","Syphilis","Herpes simplex (genital)","Human papillomavirus (HPV)"]},
+  {d:9,label:"Module B – Sexual Health 2 + HIV",date:"Apr 21",module:"b",tip:"HIV: know CD4 thresholds. Hepatitis — know modes of transmission.",conditions:["HIV","Common opportunistic infections in HIV (PCP, toxoplasma, CMV, TB, cryptococcal)","Hepatitis A,B,C,D,E","Bacterial vaginosis","Vaginal candida","Trichomonas","Mycoplasma genitalium"]},
+  {d:10,label:"Module B – Urology",date:"Apr 22",module:"b",tip:"Testicular torsion is an OSCE favourite. BPH and prostate cancer very high written yield.",conditions:["Benign prostatic hyperplasia","Prostate cancer","Testicular cancer","Testicular torsion","Bladder/urothelium cancers","Urinary calculi","Upper/lower UTI (urology)","Epididymitis","Balanitis","Phimosis/paraphimosis"]},
+  {d:11,label:"Module B – Breast + Dermatology 1",date:"Apr 23",module:"b",tip:"Triple assessment for breast lumps — excellent OSCE communication station.",conditions:["Breast cancer","Fibroadenoma","Breast cyst","ANDI (aberrations of normal development)","Familial risk/BRCA screening","Acne","Eczema","Psoriasis"]},
+  {d:12,label:"Module B – Dermatology 2",date:"Apr 24",module:"b",tip:"Skin cancer: learn distinguishing features of BCC, SCC, melanoma.",conditions:["Malignant skin lesions (BCC, SCC, melanoma)","Benign skin lesions (naevi, warts, sebaceous cysts)","Contact dermatitis","Urticaria","Blistering disorders","Lichen planus","Scabies","Burns","Cutaneous warts","Cutaneous manifestations of systemic disease","Dermatological emergencies","Alopecia","Leg ulcers"]},
+  {d:13,label:"Module A – Child Health 1 (gaps)",date:"Apr 25",module:"a",tip:"Gap-fill. Neonatal conditions are commonly examined.",conditions:["Neonatal sepsis","Neonatal hypoglycaemia","Hypoxic ischaemic encephalopathy (HIE)","Respiratory distress syndrome","Necrotising enterocolitis","Bronchiolitis"]},
+  {d:14,label:"Module A – Child Health 2 (gaps)",date:"Apr 26",module:"a",tip:"Surgical/congenital paediatric conditions. Down syndrome and CHD core for written.",conditions:["Congenital heart defects (VSD, PDA)","Down syndrome / Trisomy 21","Cystic fibrosis","Pyloric stenosis","Intussusception","Biliary atresia","Cleft palate"]},
+  {d:15,label:"Module A – Child Health 3 (gaps)",date:"Apr 27",module:"a",tip:"Paeds neurology and MSK. Safeguarding frequently in written.",conditions:["Acute seizures","Febrile convulsions","Cerebral palsy / neuro-disability","Muscular dystrophies","Slipped upper femoral epiphysis","Dysplasia of the hip","Transient synovitis","Safeguarding"]},
+  {d:16,label:"Module A – Child Health 4 + Infections",date:"Apr 28",module:"a",tip:"Infections in children — learn classic rash distributions.",conditions:["Meningococcal sepsis","Kawasaki disease","Upper airway obstruction (croup, epiglottitis)","Viral exanthema","Whooping cough","Cellulitis (paeds)","UTI (paeds)","Mesenteric adenitis"]},
+  {d:17,label:"Module A – Child Health 5 + Metabolic",date:"Apr 29",module:"a",tip:"Diabetes and sickle cell in paeds carry significant marks.",conditions:["Diabetes mellitus type 1 + DKA (paeds)","Sickle cell disease (paeds)","Turner syndrome","Coeliac disease","Food intolerance","Gastro-oesophageal reflux disease","Atopic diseases (allergy, anaphylaxis, eczema)","FGM","Neonatal death (paeds context)"]},
+  {d:18,label:"Module A – CAMHS (gaps)",date:"Apr 30",module:"a",tip:"ADHD and autism very commonly tested. Know diagnostic criteria.",conditions:["Autism spectrum conditions (ASC)","ADHD / hyperkinetic disorder","Conduct disorder / ODD","Mood disorders (paeds)","Eating disorders (paeds)","Schizophrenia / psychotic disorders (paeds)","Attachment disorders","Intellectual disability","Neurodevelopmental disorders","Disorders associated with stress","Functional disorders"]},
+  {d:19,label:"GP Presentations 1",date:"May 1",module:"gp",tip:"Practice building differentials for each presentation.",conditions:["Abdominal pain","Chest pain (incl. pleuritic)","Breathlessness","Cough","Headache","Fever","Dizziness"]},
+  {d:20,label:"GP Presentations 2",date:"May 2",module:"gp",tip:"Know safety-netting and red flags to mention for each.",conditions:["Joint pain","Rash and skin erythema","Lumps","Lymphadenopathy","Rectal bleeding","Urinary symptoms","Weakness and paraesthesia","Red eye"]},
+  {d:21,label:"GP Presentations 3 + Communication",date:"May 3",module:"gp",tip:"Communication and ethics topics — appear in both written and OSCE.",conditions:["Menstrual cycle irregularities","Subfertility","Contraception (incl. emergency)","Termination of pregnancy request","Pregnancy-related illness","Depressive symptoms","Anxiety and panic","Acute psychiatric illness","Substance misuse"]},
+  {d:22,label:"GP Presentations 4 + Misc",date:"May 4",module:"gp",tip:"Multi-morbidity, polypharmacy, and incidental findings are written exam staples.",conditions:["Tired all the time / fatigue","Sleep problems","Stress","Cognitive/memory problems","Abnormal haematology/biochemistry","Medically unexplained symptoms","Obesity","Diet and lifestyle advice","Multi-morbidity","Polypharmacy","Falls","Acute confusion","Incidental findings","Driving advice","Wellbeing checks"]},
+  {d:23,label:"Module C – Oncology 1 (gaps)",date:"May 5",module:"c",tip:"Oncological emergencies very high yield: SVCO, cord compression, neutropenic sepsis.",conditions:["Neutropenic sepsis","Superior vena cava obstruction (SVCO)","Spinal cord compression (metastatic)","Malignant bowel obstruction","Metastatic cancer (bone, liver, brain, cord)","Carcinoma of unknown primary"]},
+  {d:24,label:"Module C – Oncology 2 (gaps)",date:"May 6",module:"c",tip:"Major solid organ cancers. Know 2-week-wait referral criteria.",conditions:["Lung cancer","Bowel cancer","Breast cancer (oncology perspective)","Gastric cancer","Oesophageal cancer","Pancreatic cancer","Liver cancer","Renal cancer"]},
+  {d:25,label:"Module C – Oncology 3 + Haematology",date:"May 7",module:"c",tip:"Haematological malignancies — know classification. Renal failure in cancer context.",conditions:["Haematological malignancies (lymphoma, leukaemia, myeloma)","Head and neck cancer","Laryngeal cancer","Testicular cancer (oncology)","Bladder cancer (oncology)","Cervical cancer (oncology)","Endometrial cancer (oncology)","Ovarian cancer (oncology)","Prostate cancer (oncology)","Renal failure (oncology)"]},
+  {d:26,label:"Module C – Older Person + Dementia (gaps)",date:"May 8",module:"c",tip:"Dementia subtypes — know distinguishing features. Delirium vs dementia classic OSCE.",conditions:["Alzheimer's disease","Vascular dementia","Lewy body dementia","Frontotemporal dementia","Delirium","Parkinson's disease + movement disorders","Infection in the elderly","Malnutrition","Pressure ulcers","Osteoporosis","Osteoarthritis","Peripheral neuropathy + Guillain-Barré"]},
+  {d:27,label:"Module C – Psychiatry (gaps)",date:"May 9",module:"c",tip:"Consolidate adult psychiatric conditions. Crossover with CAMHS day.",conditions:["Schizophrenia / psychotic disorders (adult)","Mood disorders (adult)","Anxiety / fear-related disorders","OCD and related disorders","Personality disorders","Dissociative disorders","Disorders due to substance use","Disorders associated with stress (adult)","Eating disorders (adult)","Intellectual disability (adult)","Neurodevelopmental disorders (adult)"]},
+  {d:28,label:"Module C – Ophthalmology 1 (gaps)",date:"May 10",module:"c",tip:"Know emergency red flags for sudden vision loss — common OSCE presentation.",conditions:["Retinal detachment","Retinal artery occlusion","Retinal vein occlusion","Giant cell (temporal) arteritis","Acute angle-closure glaucoma","Orbital/preseptal cellulitis","Chemical eye injury","Papilloedema + idiopathic intracranial hypertension"]},
+  {d:29,label:"Module C – Ophthalmology 2 + Palliative",date:"May 11",module:"c",tip:"Cranial nerve palsies linking eye signs to neurology.",conditions:["Open angle glaucoma","Diabetic eye disease","Age-related macular degeneration","Cataracts","Conjunctivitis (incl. ophthalmia neonatorum)","Corneal pathology","Uveitis","Thyroid eye disease","Horner's syndrome","III, IV, VI cranial nerve palsies","Optic neuropathy","Amblyopia","Strabismus","Amaurosis fugax","Visual field defects","Refractive errors","Blepharitis","Benign eyelid disorders","Scleritis","Eyelid tumours","Ptosis"]},
+  {d:30,label:"Full revision + OSCE prep",date:"May 12",module:"gp",tip:"Final consolidation. Practice OSCE communication frameworks: ICE, safety-netting, breaking bad news.",conditions:["Review all flagged/incomplete conditions","OSCE: ICE model","OSCE: breaking bad news","OSCE: consent","OSCE: safety-netting","Written: SAQs on highest-yield topics","Pharmacology review: key drugs per module"]}
+];
+
+let checks = Store.getChecks();
+let currentFilter = 'all';
+
+function totalConds() { return DAYS.reduce((n,d) => n + d.conditions.length, 0); }
+function countDone()  { return DAYS.reduce((n,d) => n + d.conditions.filter((_,i) => checks[d.d+'-'+i]).length, 0); }
+function dayDone(d)   { return d.conditions.filter((_,i) => checks[d.d+'-'+i]).length; }
+
+function updateStats() {
+  const done = countDone(), tot = totalConds(), pct = Math.round(done/tot*100);
+  document.getElementById('s-total').textContent = done;
+  document.getElementById('op-done').textContent = done + ' / ' + tot + ' conditions';
+  document.getElementById('op-pct').textContent = pct + '%';
+  document.getElementById('op-fill').style.width = pct + '%';
+  // days to go
+  const osce = new Date('2025-06-30');
+  const today = new Date();
+  const diff = Math.ceil((osce - today) / 86400000);
+  document.getElementById('s-days').textContent = diff > 0 ? diff : '—';
+}
+
+function tagClass(m) { return m==='b'?'tag tag-b':m==='a'?'tag tag-a':m==='c'?'tag tag-c':'tag tag-gp'; }
+function tagLabel(m) { return m==='b'?'Module B – new':m==='a'?'Module A gap-fill':m==='c'?'Module C gap-fill':'GP presentations'; }
+
+function filterDays(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  DAYS.forEach(day => {
+    const done = dayDone(day), tot = day.conditions.length, complete = done === tot;
+    if (currentFilter === 'b' && day.module !== 'b') return;
+    if (currentFilter === 'a' && day.module !== 'a' && day.module !== 'c') return;
+    if (currentFilter === 'gp' && day.module !== 'gp') return;
+    if (currentFilter === 'remaining' && complete) return;
+
+    const card = document.createElement('div');
+    card.className = 'day-card' + (complete ? ' done' : '') + (day.module === 'b' ? ' mod-b' : '');
+
+    const condHtml = day.conditions.map((c, i) => {
+      const key = day.d + '-' + i;
+      return `<div class="cond-item"><input type="checkbox" data-key="${key}"${checks[key] ? ' checked' : ''}/><span>${c}</span></div>`;
+    }).join('');
+
+    const pct = Math.round(done / tot * 100);
+    card.innerHTML = `
+      <div class="day-header">
+        <span class="day-num">Day ${day.d} — ${day.label}</span>
+        <span class="day-date">${day.date}</span>
+      </div>
+      <div class="tags"><span class="${tagClass(day.module)}">${tagLabel(day.module)}</span></div>
+      <div class="conditions">${condHtml}</div>
+      ${day.tip ? `<div class="day-tip">${day.tip}</div>` : ''}
+      <div class="day-footer">
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+        <span class="prog-label">${done}/${tot}</span>
+      </div>`;
+
+    card.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        checks[e.target.dataset.key] = e.target.checked;
+        Store.saveChecks(checks);
+        const n = dayDone(day), p = Math.round(n / tot * 100);
+        card.querySelector('.prog-fill').style.width = p + '%';
+        card.querySelector('.prog-label').textContent = n + '/' + tot;
+        card.classList.toggle('done', n === tot);
+        updateStats();
+      });
+    });
+    g.appendChild(card);
+  });
+}
+
+renderGrid();
+updateStats();
+</script>
+</body>
+</html>

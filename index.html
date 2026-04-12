@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UCL Y5 MBBS Revision Hub</title>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<style>
+.hero { padding: 3.5rem 0 2.5rem; }
+.hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.15; }
+.hero h1 span { color: var(--purple); }
+.hero p { color: var(--text2); font-size: 0.95rem; margin-top: 0.75rem; max-width: 480px; line-height: 1.6; }
+.hero-actions { margin-top: 1.5rem; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 1.5rem; }
+.overview-card {
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+  padding: 1.25rem; text-decoration: none; color: var(--text); display: block;
+  transition: border-color 0.15s;
+}
+.overview-card:hover { border-color: var(--purple); }
+.ov-icon { font-size: 1.4rem; margin-bottom: 0.75rem; }
+.ov-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; }
+.ov-desc { font-size: 0.8rem; color: var(--text2); line-height: 1.5; }
+.ov-stat { font-size: 0.75rem; color: var(--purple); font-weight: 600; margin-top: 0.75rem; }
+
+.section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 0.75rem; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">UCL <span>Y5</span></a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="timetable/index.html">Timetable</a></li>
+      <li><a href="sba/index.html">SBA Bank</a></li>
+    </ul>
+    <a class="nav-admin" href="admin/index.html">⚙ Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="hero">
+    <h1>Your <span>MBBS Y5</span><br/>revision hub.</h1>
+    <p>30-day timetable, AI-generated SBAs per specialty, and your own notes — all in one place. OSCEs: 30 June.</p>
+    <div class="hero-actions">
+      <a href="timetable/index.html" class="btn btn-primary">Open timetable →</a>
+      <a href="sba/index.html" class="btn">SBA bank</a>
+      <a href="admin/index.html" class="btn">Generate questions</a>
+    </div>
+  </div>
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat-tile"><div class="stat-n" id="stat-checked">0</div><div class="stat-l">conditions ticked</div></div>
+    <div class="stat-tile"><div class="stat-n">221</div><div class="stat-l">total conditions</div></div>
+    <div class="stat-tile"><div class="stat-n" id="stat-sbas">0</div><div class="stat-l">SBAs saved</div></div>
+    <div class="stat-tile"><div class="stat-n">13</div><div class="stat-l">specialties</div></div>
+    <div class="stat-tile"><div class="stat-n">30 Jun</div><div class="stat-l">OSCE date</div></div>
+  </div>
+
+  <p class="section-title">Quick access</p>
+  <div class="overview-grid">
+    <a class="overview-card" href="timetable/index.html">
+      <div class="ov-icon">📅</div>
+      <div class="ov-title">30-Day Timetable</div>
+      <div class="ov-desc">Day-by-day conditions schedule with progress tracking. Module B front-loaded as all new.</div>
+      <div class="ov-stat" id="ov-timetable">Loading...</div>
+    </a>
+    <a class="overview-card" href="sba/index.html">
+      <div class="ov-icon">🧠</div>
+      <div class="ov-title">SBA Bank</div>
+      <div class="ov-desc">Practice single best answer questions organised by specialty. Answer, reveal, repeat.</div>
+      <div class="ov-stat" id="ov-sbas">Loading...</div>
+    </a>
+    <a class="overview-card" href="admin/index.html">
+      <div class="ov-icon">✨</div>
+      <div class="ov-title">Generate SBAs</div>
+      <div class="ov-desc">Paste your notes or upload a PDF, pick a specialty, and Claude generates targeted SBAs for you to review and save.</div>
+      <div class="ov-stat">Claude API powered</div>
+    </a>
+    <a class="overview-card" href="admin/index.html#import">
+      <div class="ov-icon">💾</div>
+      <div class="ov-title">Export / Import</div>
+      <div class="ov-desc">Download your full SBA bank as JSON to commit to GitHub, or import a previously saved bank.</div>
+      <div class="ov-stat">Persist across devices</div>
+    </a>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="assets/js/shared.js"></script>
+<script>
+  // Stats
+  const checks = Store.getChecks();
+  const checkedCount = Object.values(checks).filter(Boolean).length;
+  document.getElementById('stat-checked').textContent = checkedCount;
+  document.getElementById('stat-sbas').textContent = countAllSBAs();
+
+  const total = 221;
+  const pct = Math.round(checkedCount / total * 100);
+  document.getElementById('ov-timetable').textContent = checkedCount + ' / ' + total + ' conditions (' + pct + '%)';
+  document.getElementById('ov-sbas').textContent = countAllSBAs() + ' questions across 13 specialties';
+</script>
+</body>
+</html>

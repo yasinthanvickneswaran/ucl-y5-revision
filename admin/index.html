@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin – UCL Y5</title>
+<link rel="stylesheet" href="../assets/css/style.css"/>
+<style>
+.admin-grid { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 780px) { .admin-grid { grid-template-columns: 1fr; } }
+
+.panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+.panel h2 { font-size: 0.9rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 0.5px solid var(--border); }
+
+.api-key-row { display: flex; gap: 8px; }
+.api-key-row input { flex: 1; font-family: monospace; font-size: 0.75rem; letter-spacing: 0.05em; }
+
+.gen-controls { display: flex; flex-direction: column; gap: 1rem; }
+.n-input { width: 80px !important; }
+
+.loading-bar { display: none; background: var(--surface2); border-radius: 8px; padding: 1rem; text-align: center; }
+.loading-bar p { font-size: 0.83rem; color: var(--text2); margin-top: 0.5rem; }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Preview cards */
+.preview-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem; margin-bottom: 0.75rem; }
+.preview-card.approved { border-color: #63A822; }
+.preview-card.rejected { opacity: 0.4; }
+
+.preview-stem { font-size: 0.87rem; font-weight: 500; line-height: 1.55; margin-bottom: 0.75rem; }
+.preview-stem textarea { font-size: 0.87rem; line-height: 1.55; width: 100%; border: 0.5px solid var(--border2); border-radius: 6px; padding: 6px 9px; font-family: inherit; resize: vertical; }
+
+.preview-opts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 0.75rem; }
+.opt-row { display: flex; gap: 7px; align-items: center; }
+.opt-row .opt-letter { font-size: 0.75rem; font-weight: 700; color: var(--text3); width: 16px; flex-shrink: 0; }
+.opt-row input[type=text] { flex: 1; font-size: 0.8rem; padding: 5px 9px; }
+.opt-row input[type=radio] { accent-color: var(--purple); cursor: pointer; flex-shrink: 0; }
+.correct-label { font-size: 0.7rem; color: var(--text3); margin-bottom: 4px; }
+
+.preview-exp label { margin-bottom: 4px; }
+.preview-exp textarea { min-height: 70px; font-size: 0.8rem; }
+
+.preview-actions { display: flex; gap: 7px; flex-wrap: wrap; padding-top: 0.75rem; border-top: 0.5px solid var(--border); margin-top: 0.75rem; }
+
+.save-all-bar { display: none; background: var(--purple-bg); border: 0.5px solid var(--purple); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.save-all-bar p { font-size: 0.83rem; color: var(--purple-dark); font-weight: 500; }
+
+.import-section { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 0.5px solid var(--border); }
+.import-section h3 { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.tab-bar { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 0.5px solid var(--border); }
+.tab { padding: 8px 14px; font-size: 0.8rem; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: color 0.15s; }
+.tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+
+#pdf-area { display: none; }
+#text-area { display: block; }
+
+.error-box { background: var(--red-bg); border: 0.5px solid #e24b4a; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: var(--red); margin-bottom: 1rem; display: none; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">UCL <span>Y5</span></a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../timetable/index.html">Timetable</a></li>
+      <li><a href="../sba/index.html">SBA Bank</a></li>
+    </ul>
+    <a class="nav-admin" href="index.html" style="font-weight:600;color:var(--text)">⚙ Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Admin — Generate & Manage SBAs</h1>
+    <p>Add your notes or upload a PDF, pick a specialty, and Claude will generate SBAs for you to review and save.</p>
+  </div>
+
+  <div class="admin-grid">
+
+    <!-- Left panel: controls -->
+    <div>
+      <div class="panel" style="margin-bottom:1rem">
+        <h2>1. API key</h2>
+        <div class="form-group">
+          <label>Anthropic API key (stored locally only)</label>
+          <div class="api-key-row">
+            <input type="password" id="api-key" placeholder="sk-ant-..." />
+            <button class="btn" onclick="saveKey()">Save</button>
+          </div>
+          <p style="font-size:0.72rem;color:var(--text3);margin-top:5px">Never sent anywhere except Anthropic's API. Stored in your browser only.</p>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1rem">
+        <h2>2. Source material</h2>
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchTab('text',this)">Paste notes</button>
+          <button class="tab" onclick="switchTab('pdf',this)">Upload PDF</button>
+        </div>
+        <div id="text-area">
+          <div class="form-group">
+            <label>Your notes (paste anything — lecture notes, Anki, textbook summaries)</label>
+            <textarea id="notes-text" rows="8" placeholder="Paste your notes here..."></textarea>
+          </div>
+        </div>
+        <div id="pdf-area">
+          <div class="form-group">
+            <label>Upload a PDF</label>
+            <input type="file" id="pdf-file" accept=".pdf" style="font-size:0.82rem;width:100%"/>
+            <p style="font-size:0.72rem;color:var(--text3);margin-top:5px" id="pdf-status"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>3. Generate</h2>
+        <div class="gen-controls">
+          <div class="form-group">
+            <label>Specialty</label>
+            <select id="spec-select">
+              <option value="">— choose —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Number of SBAs to generate</label>
+            <input type="number" id="n-questions" class="n-input" value="5" min="1" max="20"/>
+          </div>
+          <div class="form-group">
+            <label>Difficulty focus</label>
+            <select id="difficulty">
+              <option value="mixed">Mixed (recommended)</option>
+              <option value="foundation">Foundation / recall</option>
+              <option value="application">Application / reasoning</option>
+              <option value="high-yield">High-yield OSCE topics only</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="gen-btn" onclick="generate()" style="width:100%;justify-content:center">✨ Generate SBAs</button>
+        </div>
+      </div>
+
+      <!-- Import / Export section -->
+      <div class="panel import-section" id="import" style="margin-top:1rem">
+        <h3>Export / Import</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn" onclick="exportAllSBAs()" style="justify-content:center">↓ Export all SBAs as JSON</button>
+          <button class="btn" onclick="document.getElementById('import-input').click()" style="justify-content:center">↑ Import SBA JSON</button>
+          <input type="file" id="import-input" accept=".json" style="display:none" onchange="handleImport(this)"/>
+          <p style="font-size:0.72rem;color:var(--text3);line-height:1.5">Export your bank as JSON and commit it to your GitHub repo — it'll be available to import on any device.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: review -->
+    <div>
+      <div id="error-box" class="error-box"></div>
+
+      <div class="loading-bar" id="loading">
+        <div class="spinner"></div>
+        <p id="loading-msg">Generating questions...</p>
+      </div>
+
+      <div id="save-all-bar" style="display:none;background:var(--purple-bg);border:0.5px solid var(--purple);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <p style="font-size:0.83rem;color:var(--purple-dark);font-weight:500;margin:0" id="save-all-msg">Review questions below, then save approved ones.</p>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-primary" onclick="saveApproved()">Save approved →</button>
+          <button class="btn" onclick="approveAll()">Approve all</button>
+          <button class="btn" onclick="clearPreview()">Clear</button>
+        </div>
+      </div>
+
+      <div id="preview-list"></div>
+
+      <div id="empty-right" style="text-align:center;padding:3rem 1rem;color:var(--text3)">
+        <p style="font-size:2rem;margin-bottom:0.75rem">✨</p>
+        <p style="font-size:0.875rem">Generated questions will appear here for you to review, edit, approve, or reject before saving.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../assets/js/shared.js"></script>
+<script>
+// ── Init ──────────────────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+
+// Populate specialty select
+const sel = document.getElementById('spec-select');
+SPECIALTIES.forEach(s => {
+  const o = document.createElement('option');
+  o.value = s.id;
+  o.textContent = s.label + ' (' + MODULE_LABELS[s.module] + ')';
+  sel.appendChild(o);
+});
+if (params.get('spec')) sel.value = params.get('spec');
+
+// Load saved key
+const savedKey = Store.get('anthropic_key', '');
+if (savedKey) document.getElementById('api-key').value = savedKey;
+
+// Load saved notes for the selected spec
+sel.addEventListener('change', () => {
+  const notes = Store.getNotes(sel.value);
+  if (notes) document.getElementById('notes-text').value = notes;
+});
+
+// Handle edit mode
+const editParam = params.get('edit');
+if (editParam) {
+  try {
+    const { qi, q } = JSON.parse(decodeURIComponent(editParam));
+    // Will render as a single editable card in preview
+    setTimeout(() => showEditCard(qi, q), 100);
+  } catch {}
+}
+
+// ── Key ───────────────────────────────────────────────────────────────────────
+function saveKey() {
+  const k = document.getElementById('api-key').value.trim();
+  if (!k) return;
+  Store.set('anthropic_key', k);
+  showToast('API key saved');
+}
+
+// ── Tab switch ────────────────────────────────────────────────────────────────
+let pdfBase64 = null;
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('text-area').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('pdf-area').style.display  = tab === 'pdf'  ? 'block' : 'none';
+}
+
+document.getElementById('pdf-file').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pdfBase64 = e.target.result.split(',')[1];
+    document.getElementById('pdf-status').textContent = '✓ ' + file.name + ' loaded (' + Math.round(file.size/1024) + ' KB)';
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generate() {
+  const key = Store.get('anthropic_key', '');
+  if (!key) { showError('Please enter and save your Anthropic API key first.'); return; }
+
+  const specId = sel.value;
+  if (!specId) { showError('Please select a specialty.'); return; }
+
+  const specObj = SPECIALTIES.find(s => s.id === specId);
+  const notes = document.getElementById('notes-text').value.trim();
+  const n = parseInt(document.getElementById('n-questions').value) || 5;
+  const diff = document.getElementById('difficulty').value;
+
+  const usePdf = pdfBase64 && document.getElementById('pdf-area').style.display !== 'none';
+
+  if (!notes && !usePdf) { showError('Please paste some notes or upload a PDF first.'); return; }
+
+  // Save notes
+  if (notes) Store.saveNotes(specId, notes);
+
+  hideError();
+  setLoading(true, 'Generating ' + n + ' SBAs for ' + specObj.label + '...');
+
+  const diffMap = {
+    'mixed': 'a mix of recall, application, and reasoning questions',
+    'foundation': 'straightforward recall and recognition questions',
+    'application': 'application and clinical reasoning questions',
+    'high-yield': 'only high-yield OSCE-relevant clinical scenarios'
+  };
+
+  const systemPrompt = `You are an expert UCL medical educator creating UK MBBS final year SBA questions for ${specObj.label}.
+Generate exactly ${n} SBA questions based on the provided study material.
+Rules:
+- Each question is a clinical vignette with a clear single best answer
+- 5 options (A–E), one clearly correct
+- Distractors are plausible but distinguishable
+- Include a concise explanation (2–3 sentences) explaining why the answer is correct and why key distractors are wrong
+- Difficulty: ${diffMap[diff]}
+- Questions must be based ONLY on the provided material
+- Respond with ONLY valid JSON, no markdown fences, no preamble
+
+JSON format:
+{
+  "questions": [
+    {
+      "stem": "A 34-year-old woman...",
+      "options": ["Option A", "Option B", "Option C", "Option D", "Option E"],
+      "correct_index": 0,
+      "explanation": "The answer is A because..."
+    }
+  ]
+}`;
+
+  let userContent;
+  if (usePdf) {
+    userContent = [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+      { type: "text", text: "Generate " + n + " SBA questions based on this document." }
+    ];
+  } else {
+    userContent = "Here are my study notes for " + specObj.label + ":\n\n" + notes + "\n\nGenerate " + n + " SBA questions.";
+  }
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContent }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'API error ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const raw = data.content.map(b => b.type === 'text' ? b.text : '').join('').trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    const qs = parsed.questions || parsed;
+
+    setLoading(false);
+    showPreview(qs, specId);
+  } catch (err) {
+    setLoading(false);
+    showError('Generation failed: ' + err.message);
+  }
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+let previewData = [];
+let previewSpec = '';
+
+function showPreview(qs, specId) {
+  previewData = qs.map(q => ({ ...q, approved: true }));
+  previewSpec = specId;
+
+  document.getElementById('empty-right').style.display = 'none';
+  const bar = document.getElementById('save-all-bar');
+  bar.style.display = 'flex';
+  updateSaveBar();
+  renderPreview();
+}
+
+function renderPreview() {
+  const list = document.getElementById('preview-list');
+  list.innerHTML = '';
+  const letters = ['A','B','C','D','E'];
+
+  previewData.forEach((q, qi) => {
+    const card = document.createElement('div');
+    card.className = 'preview-card' + (q.approved ? ' approved' : ' rejected');
+    card.id = 'pcard-' + qi;
+
+    const optsHtml = q.options.map((opt, oi) => `
+      <div class="opt-row">
+        <span class="opt-letter">${letters[oi]}.</span>
+        <input type="text" value="${escHtml(opt)}" onchange="previewData[${qi}].options[${oi}]=this.value" />
+        <input type="radio" name="correct-${qi}" value="${oi}" ${q.correct_index === oi ? 'checked' : ''} onchange="previewData[${qi}].correct_index=${oi}" title="Mark as correct answer"/>
+      </div>`).join('');
+
+    card.innerHTML = `
+      <div style="font-size:0.7rem;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>Question ${qi+1} ${q.approved ? '<span style="color:var(--green)">✓ approved</span>' : '<span style="color:var(--red3)">✗ rejected</span>'}</span>
+        <span style="font-size:0.68rem;color:var(--text3)">Click radio button to set correct answer</span>
+      </div>
+      <div class="form-group">
+        <label>Question stem</label>
+        <textarea onchange="previewData[${qi}].stem=this.value" rows="3">${escHtml(q.stem)}</textarea>
+      </div>
+      <div class="form-group">
+        <div class="correct-label">Options — select radio button to mark correct answer</div>
+        <div class="preview-opts">${optsHtml}</div>
+      </div>
+      <div class="preview-exp form-group">
+        <label>Explanation</label>
+        <textarea onchange="previewData[${qi}].explanation=this.value" rows="3">${escHtml(q.explanation || '')}</textarea>
+      </div>
+      <div class="preview-actions">
+        ${q.approved
+          ? `<button class="btn btn-sm btn-danger" onclick="toggleApprove(${qi})">✗ Reject</button>`
+          : `<button class="btn btn-sm btn-primary" onclick="toggleApprove(${qi})">✓ Approve</button>`}
+      </div>`;
+
+    list.appendChild(card);
+  });
+}
+
+function toggleApprove(qi) {
+  previewData[qi].approved = !previewData[qi].approved;
+  updateSaveBar();
+  renderPreview();
+}
+
+function approveAll() {
+  previewData.forEach(q => q.approved = true);
+  updateSaveBar();
+  renderPreview();
+}
+
+function updateSaveBar() {
+  const n = previewData.filter(q => q.approved).length;
+  document.getElementById('save-all-msg').textContent = n + ' of ' + previewData.length + ' questions approved';
+}
+
+function saveApproved() {
+  if (!previewSpec) return;
+  const approved = previewData.filter(q => q.approved).map(({ approved: _, ...q }) => q);
+  if (!approved.length) { showToast('No approved questions to save'); return; }
+
+  const existing = Store.getSBAs(previewSpec);
+  Store.saveSBAs(previewSpec, [...existing, ...approved]);
+  showToast(approved.length + ' questions saved to ' + SPECIALTIES.find(s => s.id === previewSpec)?.label);
+  clearPreview();
+}
+
+function clearPreview() {
+  previewData = [];
+  document.getElementById('preview-list').innerHTML = '';
+  document.getElementById('save-all-bar').style.display = 'none';
+  document.getElementById('empty-right').style.display = 'block';
+}
+
+function showEditCard(qi, q) {
+  showPreview([q], params.get('spec'));
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function handleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (importSBAs(e.target.result)) showToast('SBA bank imported');
+    else showToast('Import failed — check JSON format');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setLoading(on, msg) {
+  const el = document.getElementById('loading');
+  el.style.display = on ? 'block' : 'none';
+  if (msg) document.getElementById('loading-msg').textContent = msg;
+  document.getElementById('gen-btn').disabled = on;
+  document.getElementById('gen-btn').textContent = on ? 'Generating...' : '✨ Generate SBAs';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() { document.getElementById('error-box').style.display = 'none'; }
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
