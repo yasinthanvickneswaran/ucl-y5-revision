@@ -7,62 +7,34 @@
 <link rel="stylesheet" href="../assets/css/style.css"/>
 <style>
 .module-section { margin-bottom: 2.5rem; }
-.module-heading {
-  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--text3); margin-bottom: 0.875rem; display: flex; align-items: center; gap: 8px;
-}
-.module-heading::after { content:''; flex:1; height:0.5px; background:var(--border); }
-
-.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
-
-.spec-card {
-  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
-  padding: 1rem 1.1rem; text-decoration: none; color: var(--text); display: flex;
-  flex-direction: column; gap: 0; transition: border-color 0.15s, box-shadow 0.12s;
-}
-.spec-card:hover { border-color: var(--purple); }
-.spec-card.has-notes { border-left: 3px solid var(--teal); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
-
-.sc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.sc-name { font-size: 0.9rem; font-weight: 600; }
-.sc-badges { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-
-.sc-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 10px 0 8px; }
-.sc-stat { background: var(--surface2); border-radius: 6px; padding: 6px 8px; text-align: center; }
-.sc-stat-n { font-size: 1rem; font-weight: 700; color: var(--text); }
-.sc-stat-l { font-size: 0.62rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 1px; }
-
-.sc-prog { margin-top: 4px; }
-.sc-prog-label { font-size: 0.68rem; color: var(--text3); margin-bottom: 3px; display: flex; justify-content: space-between; }
-
-.sc-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--border); }
-.sc-actions a, .sc-actions button {
-  flex: 1; text-align: center; font-size: 0.72rem; padding: 5px 6px;
-  border: 0.5px solid var(--border2); border-radius: 6px; cursor: pointer;
-  background: var(--surface); color: var(--text); text-decoration: none;
-  transition: background 0.12s;
-}
-.sc-actions a:hover, .sc-actions button:hover { background: var(--surface2); }
-.sc-actions a.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
-.sc-actions a.primary:hover { background: var(--purple-dark); }
-
-/* Summary stats bar */
-.summary-bar {
-  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem; margin-bottom: 1.75rem;
-  display: flex; gap: 0; flex-wrap: wrap;
-}
-.sum-item { flex: 1; min-width: 120px; text-align: center; padding: 0.25rem 0.75rem; border-right: 0.5px solid var(--border); }
-.sum-item:last-child { border-right: none; }
-.sum-n { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; }
-.sum-l { font-size: 0.68rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; }
-.sum-item.highlight .sum-n { color: var(--purple); }
-
-/* Ring */
-.ring-wrap { display: flex; align-items: center; justify-content: center; }
-svg.ring { transform: rotate(-90deg); }
-.ring-bg { fill: none; stroke: var(--surface2); stroke-width: 5; }
-.ring-fill { fill: none; stroke: var(--purple); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+.module-heading { font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:0.875rem;display:flex;align-items:center;gap:8px; }
+.module-heading::after { content:'';flex:1;height:0.5px;background:var(--border); }
+.spec-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px; }
+.spec-card { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.1rem;text-decoration:none;color:var(--text);display:flex;flex-direction:column;transition:border-color 0.15s; }
+.spec-card:hover { border-color:var(--purple); }
+.spec-card.has-notes { border-left:3px solid var(--teal);border-radius:0 var(--radius-lg) var(--radius-lg) 0; }
+.sc-top { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px; }
+.sc-name { font-size:0.9rem;font-weight:600; }
+.sc-stats { display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:10px 0 8px; }
+.sc-stat { background:var(--surface2);border-radius:6px;padding:6px 8px;text-align:center; }
+.sc-stat-n { font-size:1rem;font-weight:700; }
+.sc-stat-l { font-size:0.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;margin-top:1px; }
+.sc-prog { margin-top:4px; }
+.sc-prog-label { font-size:0.68rem;color:var(--text3);margin-bottom:3px;display:flex;justify-content:space-between; }
+.sc-actions { display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border); }
+.sc-actions a { flex:1;text-align:center;font-size:0.72rem;padding:5px 6px;border:0.5px solid var(--border2);border-radius:6px;text-decoration:none;color:var(--text);background:var(--surface);transition:background 0.12s; }
+.sc-actions a:hover { background:var(--surface2); }
+.sc-actions a.primary { background:var(--purple);color:#fff;border-color:var(--purple); }
+.sc-actions a.primary:hover { background:var(--purple-dark); }
+.summary-bar { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.75rem;display:flex;gap:0;flex-wrap:wrap; }
+.sum-item { flex:1;min-width:110px;text-align:center;padding:0.25rem 0.75rem;border-right:0.5px solid var(--border); }
+.sum-item:last-child { border-right:none; }
+.sum-n { font-size:1.5rem;font-weight:800;letter-spacing:-0.03em; }
+.sum-l { font-size:0.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em; }
+.sum-item.highlight .sum-n { color:var(--purple); }
+svg.ring { transform:rotate(-90deg); }
+.ring-bg { fill:none;stroke:var(--surface2);stroke-width:5; }
+.ring-fill { fill:none;stroke:var(--purple);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease; }
 </style>
 </head>
 <body>
@@ -72,104 +44,110 @@ svg.ring { transform: rotate(-90deg); }
     <ul class="nav-links">
       <li><a href="../index.html">Home</a></li>
       <li><a href="../timetable/index.html">Timetable</a></li>
-      <li><a href="../specialties/index.html" class="active">Specialties</a></li>
+      <li><a href="index.html" class="active">Specialties</a></li>
       <li><a href="../sba/index.html">SBA Bank</a></li>
       <li><a href="../weaknesses/index.html">Weaknesses</a></li>
     </ul>
-    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+    <a class="nav-admin" href="../settings/index.html" style="margin-right:6px">⚙ Sync</a>
+    <a class="nav-admin" href="../admin/index.html">Admin</a>
   </div>
 </nav>
 
 <div class="page">
   <div class="page-header">
     <h1>Specialties</h1>
-    <p>Your notes, SBA progress, and quiz scores for each specialty.</p>
+    <p>Your notes, SBA progress and quiz scores for each specialty.</p>
   </div>
 
-  <div class="summary-bar" id="summary-bar">
+  <div class="summary-bar">
     <div class="sum-item highlight"><div class="sum-n" id="sum-pct">—</div><div class="sum-l">quiz accuracy</div></div>
     <div class="sum-item"><div class="sum-n" id="sum-answered">0</div><div class="sum-l">answered</div></div>
-    <div class="sum-item"><div class="sum-n" id="sum-sbas">0</div><div class="sum-l">SBAs saved</div></div>
+    <div class="sum-item"><div class="sum-n" id="sum-sbas">—</div><div class="sum-l">SBAs available</div></div>
     <div class="sum-item"><div class="sum-n" id="sum-notes">0</div><div class="sum-l">with notes</div></div>
     <div class="sum-item"><div class="sum-n">13</div><div class="sum-l">specialties</div></div>
   </div>
 
-  <div id="spec-sections"></div>
+  <div id="spec-sections"><div style="text-align:center;padding:3rem;color:var(--text3)">Loading specialties…</div></div>
 </div>
 
 <div id="toast"></div>
 <script src="../assets/js/shared.js"></script>
 <script>
 const MODULES = [
-  { key: 'b',  label: 'Module B – WHMH (new)' },
-  { key: 'a',  label: 'Module A – CFH (gap-fill)' },
-  { key: 'c',  label: 'Module C – HOPE (gap-fill)' },
-  { key: 'gp', label: 'General Practice' },
+  { key:'b',  label:'Module B – WHMH (new)' },
+  { key:'a',  label:'Module A – CFH (gap-fill)' },
+  { key:'c',  label:'Module C – HOPE (gap-fill)' },
+  { key:'gp', label:'General Practice' },
 ];
 
-function render() {
-  const prog = getGlobalProgress();
-  document.getElementById('sum-pct').textContent      = prog.totalAnswered > 0 ? prog.pct + '%' : '—';
-  document.getElementById('sum-answered').textContent = prog.totalAnswered;
-  document.getElementById('sum-sbas').textContent     = countAllSBAs();
+async function render() {
+  await syncOnLoad();
 
-  let notesCount = 0;
-  SPECIALTIES.forEach(s => { if (Store.getNotesHTML(s.id)) notesCount++; });
+  const prog = Progress.globalProgress();
+  document.getElementById('sum-pct').textContent      = prog.answered > 0 ? prog.pct+'%' : '—';
+  document.getElementById('sum-answered').textContent = prog.answered;
+
+  let notesCount = 0, totalSBAs = 0;
+  const specData = await Promise.all(SPECIALTIES.map(async s => {
+    const qs   = await loadSBAs(s.id);
+    const notes = Progress.getNotesHTML(s.id);
+    const stats = Progress.getQuizStats(s.id);
+    const flags = (Progress.getWeaknessFlags()[s.id] || []).length;
+    if (notes) notesCount++;
+    totalSBAs += qs.length;
+    return { ...s, qs, stats, flags };
+  }));
+
+  document.getElementById('sum-sbas').textContent  = totalSBAs;
   document.getElementById('sum-notes').textContent = notesCount;
 
   const container = document.getElementById('spec-sections');
   container.innerHTML = '';
 
   MODULES.forEach(mod => {
-    const specs = SPECIALTIES.filter(s => s.module === mod.key);
+    const specs = specData.filter(s => s.module === mod.key);
     const section = document.createElement('div');
     section.className = 'module-section';
-
-    const tagCls = `tag tag-${mod.key}`;
-    section.innerHTML = `<div class="module-heading"><span class="${tagCls}">${mod.label}</span></div><div class="spec-grid" id="grid-${mod.key}"></div>`;
+    section.innerHTML = `<div class="module-heading"><span class="tag tag-${mod.key}">${mod.label}</span></div><div class="spec-grid" id="grid-${mod.key}"></div>`;
     container.appendChild(section);
 
     const grid = section.querySelector('.spec-grid');
     specs.forEach(spec => {
-      const sbas   = Store.getSBAs(spec.id);
-      const stats  = Store.getQuizStats(spec.id);
-      const notes  = Store.getNotesHTML(spec.id);
-      const flags  = (Store.getWeaknessFlags()[spec.id] || []).length;
-      const acc    = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : null;
-      const pct    = acc !== null ? acc : 0;
+      const n    = spec.qs.length;
+      const st   = spec.stats;
+      const acc  = st.answered > 0 ? Math.round(st.correct/st.answered*100) : null;
+      const pct  = acc !== null ? acc : 0;
       const circum = 2 * Math.PI * 18;
-      const offset = circum - (pct / 100) * circum;
+      const offset = circum - (pct/100)*circum;
+      const accColour = acc===null ? 'var(--text3)' : acc<60 ? 'var(--red)' : acc>=80 ? 'var(--teal)' : 'var(--amber)';
+      const notes = Progress.getNotesHTML(spec.id);
 
       const card = document.createElement('a');
-      card.className = 'spec-card' + (notes ? ' has-notes' : '');
-      card.href      = `specialty.html?id=${spec.id}`;
-
+      card.className = 'spec-card' + (notes?' has-notes':'');
+      card.href = `specialty.html?id=${spec.id}`;
       card.innerHTML = `
         <div class="sc-top">
           <div class="sc-name">${spec.label}</div>
-          <div class="ring-wrap">
-            <svg class="ring" width="44" height="44" viewBox="0 0 44 44">
-              <circle class="ring-bg"   cx="22" cy="22" r="18"/>
-              <circle class="ring-fill" cx="22" cy="22" r="18"
-                stroke-dasharray="${circum.toFixed(1)}"
-                stroke-dashoffset="${offset.toFixed(1)}"
-                ${acc === null ? 'stroke="var(--border)"' : ''}/>
-            </svg>
-          </div>
+          <svg class="ring" width="44" height="44" viewBox="0 0 44 44">
+            <circle class="ring-bg" cx="22" cy="22" r="18"/>
+            <circle class="ring-fill" cx="22" cy="22" r="18"
+              stroke-dasharray="${circum.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
+              ${acc===null?'stroke="var(--border)"':''}/>
+          </svg>
         </div>
-        <div class="sc-badges">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
           <span class="tag tag-${spec.module}">${MODULE_LABELS[spec.module]}</span>
-          ${notes   ? '<span class="tag" style="background:var(--teal-bg);color:var(--teal)">Notes</span>' : ''}
-          ${flags>0 ? `<span class="tag" style="background:var(--red-bg);color:var(--red)">${flags} flagged</span>` : ''}
+          ${notes?'<span class="tag" style="background:var(--teal-bg);color:var(--teal)">Notes</span>':''}
+          ${spec.flags>0?`<span class="tag" style="background:var(--red-bg);color:var(--red)">${spec.flags} flagged</span>`:''}
         </div>
         <div class="sc-stats">
-          <div class="sc-stat"><div class="sc-stat-n">${sbas.length}</div><div class="sc-stat-l">SBAs</div></div>
-          <div class="sc-stat"><div class="sc-stat-n">${stats.answered}</div><div class="sc-stat-l">answered</div></div>
-          <div class="sc-stat"><div class="sc-stat-n" style="${acc!==null&&acc<60?'color:var(--red)':acc!==null&&acc>=80?'color:var(--teal)':''}">${acc !== null ? acc+'%' : '—'}</div><div class="sc-stat-l">accuracy</div></div>
+          <div class="sc-stat"><div class="sc-stat-n">${n}</div><div class="sc-stat-l">SBAs</div></div>
+          <div class="sc-stat"><div class="sc-stat-n">${st.answered}</div><div class="sc-stat-l">answered</div></div>
+          <div class="sc-stat"><div class="sc-stat-n" style="color:${accColour}">${acc!==null?acc+'%':'—'}</div><div class="sc-stat-l">accuracy</div></div>
         </div>
         <div class="sc-prog">
-          <div class="sc-prog-label"><span>${spec.conditions} core conditions</span>${acc!==null?`<span>${stats.correct}/${stats.answered} correct</span>`:''}</div>
-          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;${acc!==null&&acc<60?'background:var(--red)':acc!==null&&acc>=80?'background:var(--teal)':''}"></div></div>
+          <div class="sc-prog-label"><span>${spec.conditions} conditions</span>${acc!==null?`<span>${st.correct}/${st.answered}</span>`:''}</div>
+          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${accColour}"></div></div>
         </div>
         <div class="sc-actions">
           <a href="specialty.html?id=${spec.id}&tab=notes">📄 Notes</a>

@@ -5,23 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>SBA Bank – UCL Y5</title>
 <link rel="stylesheet" href="../assets/css/style.css"/>
-<style>
-.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 10px; }
-.spec-card {
-  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
-  padding: 1rem 1.1rem; text-decoration: none; color: var(--text); display: block;
-  transition: border-color 0.15s;
-}
-.spec-card:hover { border-color: var(--purple); }
-.spec-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.spec-name { font-size: 0.875rem; font-weight: 600; }
-.spec-count { font-size: 1.25rem; font-weight: 700; color: var(--purple); }
-.spec-sub { font-size: 0.72rem; color: var(--text3); }
-.spec-prog { margin-top: 10px; }
-
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 0.75rem; }
-.empty-hint { font-size: 0.8rem; color: var(--text3); margin-top: 0.5rem; }
-</style>
 </head>
 <body>
 <nav>
@@ -34,86 +17,84 @@
       <li><a href="index.html" class="active">SBA Bank</a></li>
       <li><a href="../weaknesses/index.html">Weaknesses</a></li>
     </ul>
-    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+    <a class="nav-admin" href="../settings/index.html" style="margin-right:6px">⚙ Sync</a>
+    <a class="nav-admin" href="../admin/index.html">Admin</a>
   </div>
 </nav>
 
 <div class="page">
   <div class="page-header">
     <h1>SBA Bank</h1>
-    <p>Practice single best answer questions by specialty. Questions are generated from your notes in the Admin panel.</p>
-    <div class="header-actions">
-      <a href="../admin/index.html" class="btn btn-primary">+ Generate questions</a>
-      <button class="btn" onclick="exportAllSBAs()">↓ Export bank as JSON</button>
-      <button class="btn" onclick="document.getElementById('import-file').click()">↑ Import JSON</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(this)"/>
-    </div>
+    <p>Practice questions organised by specialty. Questions are loaded from committed HTML files in <code>data/sba/</code>.</p>
   </div>
 
   <div class="stats-row">
-    <div class="stat-tile"><div class="stat-n" id="total-q">0</div><div class="stat-l">total questions</div></div>
-    <div class="stat-tile"><div class="stat-n" id="spec-with-q">0</div><div class="stat-l">specialties covered</div></div>
-    <div class="stat-tile"><div class="stat-n">13</div><div class="stat-l">specialties total</div></div>
+    <div class="stat-tile"><div class="stat-n" id="total-q">—</div><div class="stat-l">total questions</div></div>
+    <div class="stat-tile"><div class="stat-n" id="specs-with-q">—</div><div class="stat-l">specialties loaded</div></div>
+    <div class="stat-tile"><div class="stat-n" id="total-answered">—</div><div class="stat-l">answered</div></div>
+    <div class="stat-tile"><div class="stat-n" id="overall-acc">—</div><div class="stat-l">accuracy</div></div>
   </div>
 
-  <div class="spec-grid" id="spec-grid"></div>
+  <div id="spec-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">
+    <div style="text-align:center;padding:2rem;color:var(--text3);grid-column:1/-1">Loading…</div>
+  </div>
 </div>
 
 <div id="toast"></div>
 <script src="../assets/js/shared.js"></script>
 <script>
-function render() {
+async function init() {
+  await syncOnLoad();
+  const prog = Progress.globalProgress();
+  document.getElementById('total-answered').textContent = prog.answered;
+  document.getElementById('overall-acc').textContent    = prog.answered > 0 ? prog.pct + '%' : '—';
+
   const grid = document.getElementById('spec-grid');
   grid.innerHTML = '';
-  let totalQ = 0, specWithQ = 0;
+  let totalQ = 0, specsWithQ = 0;
 
-  SPECIALTIES.forEach(spec => {
-    const qs = Store.getSBAs(spec.id);
-    const n = qs.length;
-    totalQ += n;
-    if (n > 0) specWithQ++;
+  await Promise.all(SPECIALTIES.map(async spec => {
+    const qs    = await loadSBAs(spec.id);
+    const stats = Progress.getQuizStats(spec.id);
+    const acc   = stats.answered > 0 ? Math.round(stats.correct/stats.answered*100) : null;
+    const n     = qs.length;
+    if (n > 0) { totalQ += n; specsWithQ++; }
 
     const card = document.createElement('a');
-    card.className = 'spec-card';
-    card.href = `specialty.html?id=${spec.id}`;
+    card.className = 'card';
+    card.href      = `../specialties/specialty.html?id=${spec.id}&tab=sba`;
+    card.style.cssText = 'text-decoration:none;color:var(--text);display:block;transition:border-color 0.15s;cursor:pointer';
+    card.onmouseover = () => card.style.borderColor = 'var(--purple)';
+    card.onmouseout  = () => card.style.borderColor = '';
 
-    const tagCls = `tag tag-${spec.module}`;
-    const modLabel = MODULE_LABELS[spec.module];
-
+    const accColour = acc===null?'var(--text3)':acc<60?'var(--red)':acc>=80?'var(--teal)':'var(--amber)';
     card.innerHTML = `
-      <div class="spec-top">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div>
-          <div class="spec-name">${spec.label}</div>
-          <div class="spec-sub">${spec.conditions} core conditions</div>
+          <div style="font-size:0.875rem;font-weight:600">${spec.label}</div>
+          <div style="font-size:0.72rem;color:var(--text3)">${spec.conditions} core conditions</div>
         </div>
         <div style="text-align:right">
-          <div class="spec-count">${n}</div>
-          <div class="spec-sub">SBAs</div>
+          <div style="font-size:1.25rem;font-weight:700;color:var(--purple)">${n}</div>
+          <div style="font-size:0.68rem;color:var(--text3)">SBAs</div>
         </div>
       </div>
-      <span class="${tagCls}">${modLabel}</span>
-      ${n > 0 ? `<div class="spec-prog" style="margin-top:8px"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:100%"></div></div></div></div>` : '<p class="empty-hint" style="margin-top:8px">No questions yet — generate in Admin</p>'}
-    `;
+      <span class="tag tag-${spec.module}">${MODULE_LABELS[spec.module]}</span>
+      ${n > 0 ? `
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text3);margin-bottom:3px">
+          <span>${stats.answered} answered</span>
+          <span style="color:${accColour};font-weight:600">${acc!==null?acc+'%':'not started'}</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${acc||0}%;background:${accColour}"></div></div>
+      </div>` : '<p style="font-size:0.75rem;color:var(--text3);margin-top:8px">No questions yet</p>'}`;
     grid.appendChild(card);
-  });
+  }));
 
-  document.getElementById('total-q').textContent = totalQ;
-  document.getElementById('spec-with-q').textContent = specWithQ;
+  document.getElementById('total-q').textContent    = totalQ;
+  document.getElementById('specs-with-q').textContent = specsWithQ + ' / 13';
 }
-
-function handleImport(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    if (importSBAs(e.target.result)) { showToast('SBA bank imported successfully'); render(); }
-    else showToast('Import failed — check the JSON format');
-  };
-  reader.readAsText(file);
-  input.value = '';
-}
-
-render();
+init();
 </script>
 </body>
 </html>

@@ -38,7 +38,8 @@
       <li><a href="sba/index.html">SBA Bank</a></li>
       <li><a href="weaknesses/index.html">Weaknesses</a></li>
     </ul>
-    <a class="nav-admin" href="admin/index.html">⚙ Admin</a>
+    <a class="nav-admin" href="settings/index.html" style="margin-right:6px">⚙ Sync</a>
+    <a class="nav-admin" href="admin/index.html">Admin</a>
   </div>
 </nav>
 
@@ -105,25 +106,32 @@
 <div id="toast"></div>
 <script src="assets/js/shared.js"></script>
 <script>
-  // Stats
-  const checks = Store.getChecks();
+async function initHome() {
+  await syncOnLoad();
+
+  const checks = Progress.getChecks();
   const checkedCount = Object.values(checks).filter(Boolean).length;
   document.getElementById('stat-checked').textContent = checkedCount;
-  document.getElementById('stat-sbas').textContent = countAllSBAs();
 
   const total = 221;
   const pct = Math.round(checkedCount / total * 100);
   document.getElementById('ov-timetable').textContent = checkedCount + ' / ' + total + ' conditions (' + pct + '%)';
-  document.getElementById('ov-sbas').textContent = countAllSBAs() + ' questions across 13 specialties';
 
-  const prog = getGlobalProgress();
-  document.getElementById('ov-weak').textContent = prog.totalAnswered > 0
-    ? prog.pct + '% accuracy across ' + prog.totalAnswered + ' answered'
+  const prog = Progress.globalProgress();
+  document.getElementById('ov-weak').textContent = prog.answered > 0
+    ? prog.pct + '% accuracy across ' + prog.answered + ' answered'
     : 'No quiz data yet';
 
   let notesCount = 0;
-  SPECIALTIES.forEach(s => { if (Store.getNotesHTML(s.id)) notesCount++; });
+  SPECIALTIES.forEach(s => { if (Progress.getNotesHTML(s.id)) notesCount++; });
   document.getElementById('ov-specs').textContent = notesCount + ' / 13 specialties have notes';
+
+  // Async SBA count
+  const total_sbas = await countAllSBAs();
+  document.getElementById('stat-sbas').textContent = total_sbas;
+  document.getElementById('ov-sbas').textContent = total_sbas + ' questions across 13 specialties';
+}
+initHome();
 </script>
 </body>
 </html>

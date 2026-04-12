@@ -206,6 +206,11 @@
               <textarea id="sq-stem" rows="5" placeholder="A 34-year-old woman presents with..."></textarea>
             </div>
             <div class="form-group">
+              <label>Image URL <span style="font-weight:400;color:var(--text3)">(optional — e.g. ECG, rash, fundoscopy)</span></label>
+              <input type="text" id="sq-image" placeholder="https://yasinthanvickneswaran.github.io/ucl-y5-revision/assets/images/ecg_wpw.png"/>
+              <p style="font-size:0.7rem;color:var(--text3);margin-top:4px">Upload images to <code style="font-size:0.68rem;background:var(--surface2);padding:1px 4px;border-radius:3px">assets/images/</code> in your GitHub repo, then paste the full URL here.</p>
+            </div>
+            <div class="form-group">
               <div class="correct-label">Options — select radio to mark correct answer</div>
               <div id="sq-opts"></div>
             </div>
@@ -220,7 +225,8 @@
           <div id="manual-bulk" class="manual-panel">
             <div class="bulk-hint">
               Paste questions in any format. No API key needed — parsed entirely in your browser.<br>
-              Recognises: <code>1. stem</code> or <code>Q: stem</code> — options as <code>A) / A. / (A)</code> — answer as <code>Answer: B</code> or <code>Correct: C</code> — explanation as <code>Explanation: ...</code>
+              Recognises: <code>1. stem</code> or <code>Q: stem</code> — options as <code>A) / A. / (A)</code> — answer as <code>Answer: B</code> or <code>Correct: C</code> — explanation as <code>Explanation: ...</code><br>
+              To attach an image, add <code>Image: https://...</code> on its own line after the stem (before the options).
             </div>
             <div class="form-group">
               <label>Paste your questions</label>
@@ -300,6 +306,14 @@
 /* ── Init ── */
 const params = new URLSearchParams(location.search);
 
+// Local-only helpers for admin (API key, draft notes — no sync needed)
+const _ls = {
+  get(k,fb=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;} },
+  set(k,v)      { try{localStorage.setItem(k,JSON.stringify(v));}catch{} },
+  getStr(k,fb='')  { try{return localStorage.getItem(k)||fb;}catch{return fb;} },
+  setStr(k,v)      { try{localStorage.setItem(k,v);}catch{} },
+};
+
 ['ai-spec-select','manual-spec-select'].forEach(id => {
   const sel = document.getElementById(id);
   SPECIALTIES.forEach(s => {
@@ -313,7 +327,7 @@ if (params.get('spec')) {
   document.getElementById('manual-spec-select').value = params.get('spec');
 }
 
-const savedKey = Store.get('anthropic_key','');
+const savedKey = _ls.getStr('anthropic_key');
 if (savedKey) document.getElementById('api-key').value = savedKey;
 
 // Build single-question option inputs
@@ -331,7 +345,7 @@ if (savedKey) document.getElementById('api-key').value = savedKey;
 })();
 
 document.getElementById('ai-spec-select').addEventListener('change', () => {
-  const notes = Store.getNotes(document.getElementById('ai-spec-select').value);
+  const notes = _ls.getStr(`notes_${document.getElementById('ai-spec-select').value}`);
   if (notes) document.getElementById('notes-text').value = notes;
 });
 
@@ -369,7 +383,7 @@ function switchManualTab(tab, btn) {
 function saveKey() {
   const k = document.getElementById('api-key').value.trim();
   if (!k) return;
-  Store.set('anthropic_key', k); showToast('API key saved');
+  _ls.setStr('anthropic_key', k); showToast('API key saved');
 }
 
 /* ── PDF ── */
@@ -429,6 +443,14 @@ function renderPreview(mode) {
         <textarea rows="3" onchange="previewData['${mode}'][${qi}].stem=this.value">${escHtml(q.stem||'')}</textarea>
       </div>
       <div class="form-group">
+        <label>Image URL <span style="font-weight:400;color:var(--text3)">(optional — ECG, photo, etc.)</span></label>
+        <input type="text" id="img-input-${mode}-${qi}" value="${escHtml(q.image||'')}" placeholder="https://yasinthanvickneswaran.github.io/ucl-y5-revision/assets/images/..."
+          onchange="previewData['${mode}'][${qi}].image=this.value; liveImgPreview('${mode}',${qi})"/>
+        <div id="img-preview-${mode}-${qi}" style="margin-top:6px">
+          ${q.image ? `<img src="${escHtml(q.image)}" alt="question image" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:0.5px solid var(--border)"/>` : ''}
+        </div>
+      </div>
+      <div class="form-group">
         <div class="correct-label">Options</div>${optsHtml}
       </div>
       <div class="form-group">
@@ -471,11 +493,59 @@ function saveApproved(mode) {
   if (!specId) { showErr(mode,'No specialty selected'); return; }
   const approved = previewData[mode].filter(q=>q.approved).map(({approved:_,...q})=>q);
   if (!approved.length) { showToast('No approved questions'); return; }
-  const existing = Store.getSBAs(specId);
-  Store.saveSBAs(specId, [...existing, ...approved]);
-  const label = SPECIALTIES.find(s=>s.id===specId)?.label||specId;
-  showToast(approved.length+' question'+(approved.length!==1?'s':'')+' saved to '+label);
-  clearPreview(mode);
+
+  const spec  = SPECIALTIES.find(s=>s.id===specId);
+  const label = spec?.label || specId;
+  const mod   = spec?.module || '';
+
+  // Build HTML file
+  const LETTERS = ['A','B','C','D','E'];
+  const qBlocks = approved.map(q => {
+    const optsHtml = q.options.map((opt,oi) =>
+      opt ? `      <li data-index="${oi}">${LETTERS[oi]}. ${escHtml(opt)}</li>` : ''
+    ).filter(Boolean).join('\n');
+    const imgHtml = q.image ? `    <div class="q-image"><img src="${escHtml(q.image)}" alt="Question image"/></div>` : '';
+    const expHtml = q.explanation?.trim() ? `    <div class="q-explanation">${escHtml(q.explanation)}</div>` : '';
+    return `  <div class="question" data-correct="${q.correct_index??0}">
+    <div class="q-stem">${escHtml(q.stem||'')}</div>
+${imgHtml}    <ul class="q-options">
+${optsHtml}
+    </ul>
+${expHtml}  </div>`;
+  }).join('\n\n');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>${label} SBAs – UCL Y5</title>
+<meta name="specialty-id" content="${specId}"/>
+<meta name="specialty-label" content="${label}"/>
+<meta name="module" content="${mod}"/>
+<meta name="question-count" content="${approved.length}"/>
+</head>
+<body>
+<div id="sba-data">
+
+${qBlocks}
+
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `${specId}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  showToast(`Downloaded ${specId}.html — commit to data/sba/ in your repo`);
+  // Show instructions
+  const bar = document.getElementById(mode+'-save-bar');
+  const msg = document.getElementById(mode+'-save-msg');
+  msg.innerHTML = `✓ Downloaded <strong>${specId}.html</strong> — commit this file to <code style="font-size:0.75rem;background:var(--surface);padding:1px 4px;border-radius:3px">data/sba/</code> in your GitHub repo to publish these questions.`;
 }
 function clearPreview(mode) {
   previewData[mode]=[];
@@ -488,7 +558,7 @@ function clearPreview(mode) {
    AI GENERATE
 ══════════════════════════════════════════════════ */
 async function aiGenerate() {
-  const key    = Store.get('anthropic_key','');
+  const key    = _ls.getStr('anthropic_key');
   const specId = document.getElementById('ai-spec-select').value;
   const notes  = document.getElementById('notes-text').value.trim();
   const n      = parseInt(document.getElementById('n-questions').value)||5;
@@ -500,7 +570,7 @@ async function aiGenerate() {
   if (!notes && !usePdf){ showErr('ai','Please paste notes or upload a PDF.'); return; }
 
   hideErr('ai');
-  if (notes) Store.saveNotes(specId, notes);
+  if (notes) _ls.setStr(`notes_${specId}`, notes);
 
   const specObj = SPECIALTIES.find(s=>s.id===specId);
   const diffMap = { mixed:'a mix of recall, application, and reasoning', foundation:'straightforward recall', application:'clinical reasoning and application', 'high-yield':'high-yield OSCE-relevant scenarios' };
@@ -551,15 +621,17 @@ function addSingleQuestion() {
   if (opts.filter(Boolean).length < 2){ showErr('manual','Enter at least 2 options.'); return; }
   const correct = parseInt(document.querySelector('input[name="sq-correct"]:checked')?.value??0);
   const exp     = document.getElementById('sq-exp').value.trim();
+  const image   = document.getElementById('sq-image').value.trim();
 
   hideErr('manual');
   previewSpec['manual'] = specId;
-  previewData['manual'].push({ stem, options:opts.map((o,i)=>o||['A','B','C','D','E'][i]), correct_index:correct, explanation:exp, approved:true });
+  previewData['manual'].push({ stem, options:opts.map((o,i)=>o||['A','B','C','D','E'][i]), correct_index:correct, explanation:exp, ...(image && { image }), approved:true });
   updateSaveBar('manual');
   renderPreview('manual');
   document.getElementById('manual-empty').style.display='none';
 
   document.getElementById('sq-stem').value='';
+  document.getElementById('sq-image').value='';
   [0,1,2,3,4].forEach(i=>{const el=document.getElementById('sq-opt-'+i);if(el)el.value='';});
   document.getElementById('sq-exp').value='';
   document.querySelectorAll('input[name="sq-correct"]')[0].checked=true;
@@ -626,7 +698,7 @@ function htmlImportNoKey() {
 function parseHTMLQuestions(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
-  const text  = tmp.innerText || tmp.textContent || '';
+  const text  = tmp.innerText || tmp.textContent || html;
   const lines = text.split(/\n/).map(l=>l.trim()).filter(Boolean);
   const questions = [];
   let current = null;
@@ -636,10 +708,11 @@ function parseHTMLQuestions(html) {
   const qLblRe = /^Q(?:uestion)?\s*\d*[.):]\s*(.+)/i;
   const ansRe  = /^(?:answer|correct|ans)[:\s]+([A-Ea-e])/i;
   const expRe  = /^(?:explanation|rationale|reason)[:\s]+(.+)/i;
+  const imgRe  = /^(?:image|img|photo|figure|fig)[:\s]+(https?:\/\/.+)/i;
 
   const pushCurrent = () => {
     if (current && current.options.filter(Boolean).length >= 2) {
-      current.stem    = current.stem.trim();
+      current.stem = current.stem.trim();
       questions.push(current);
     }
   };
@@ -650,10 +723,13 @@ function parseHTMLQuestions(html) {
     const opt  = line.match(optRe);
     const ans  = line.match(ansRe);
     const exp  = line.match(expRe);
+    const img  = line.match(imgRe);
 
     if (qNum || qLbl) {
       pushCurrent();
-      current = { stem:(qNum?qNum[2]:qLbl[1]), options:['','','','',''], correct_index:0, explanation:'' };
+      current = { stem:(qNum?qNum[2]:qLbl[1]), options:['','','','',''], correct_index:0, explanation:'', image:'' };
+    } else if (img && current) {
+      current.image = img[1].trim();
     } else if (opt && current) {
       const idx = L.indexOf(opt[1].toUpperCase());
       if (idx>=0) current.options[idx] = opt[2].trim();
@@ -667,12 +743,13 @@ function parseHTMLQuestions(html) {
     }
   });
   pushCurrent();
-  return questions;
+  // Strip empty image fields
+  return questions.map(q => { if (!q.image) delete q.image; return q; });
 }
 
 /* HTML import with AI fallback */
 async function htmlImportWithAI() {
-  const key    = Store.get('anthropic_key','');
+  const key    = _ls.getStr('anthropic_key');
   const specId = document.getElementById('manual-spec-select').value;
   const file   = document.getElementById('html-file').files[0];
 
@@ -724,16 +801,21 @@ function handleJSONImport(input) {
   reader.readAsText(file); input.value='';
 }
 
-function renderBankStats() {
+async function renderBankStats() {
   const el = document.getElementById('bank-stats'); if (!el) return;
-  el.innerHTML = SPECIALTIES.map(s=>{
-    const n=Store.getSBAs(s.id).length;
+  el.innerHTML = '<p style="font-size:0.8rem;color:var(--text3)">Loading…</p>';
+  let total = 0;
+  const rows = await Promise.all(SPECIALTIES.map(async s => {
+    const qs = await loadSBAs(s.id);
+    const n  = qs.length;
+    total += n;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:0.82rem">
       <span>${s.label}</span>
       <span style="font-weight:600;color:${n?'var(--purple)':'var(--text3)'}">${n} q${n!==1?'s':''}</span>
     </div>`;
-  }).join('')+`<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:0.85rem;font-weight:700">
-    <span>Total</span><span style="color:var(--purple)">${countAllSBAs()}</span></div>`;
+  }));
+  el.innerHTML = rows.join('') + `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:0.85rem;font-weight:700">
+    <span>Total</span><span style="color:var(--purple)">${total}</span></div>`;
 }
 
 /* ══════════════════════════════════════════════════
@@ -749,6 +831,13 @@ function setLoading(mode, on, msg) {
 }
 function showErr(mode,msg){ const el=document.getElementById(mode+'-error'); if(el){el.textContent=msg;el.style.display='block';} }
 function hideErr(mode)    { const el=document.getElementById(mode+'-error'); if(el)el.style.display='none'; }
+function liveImgPreview(mode, qi) {
+  const url = previewData[mode][qi].image || '';
+  const el  = document.getElementById('img-preview-'+mode+'-'+qi);
+  if (!el) return;
+  el.innerHTML = url ? `<img src="${escHtml(url)}" alt="question image" style="max-width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:0.5px solid var(--border);margin-top:4px"/>` : '';
+}
+
 function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>

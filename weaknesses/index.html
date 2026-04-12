@@ -60,7 +60,8 @@
       <li><a href="../sba/index.html">SBA Bank</a></li>
       <li><a href="index.html" class="active">Weaknesses</a></li>
     </ul>
-    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+    <a class="nav-admin" href="../settings/index.html" style="margin-right:6px">⚙ Sync</a>
+    <a class="nav-admin" href="../admin/index.html">Admin</a>
   </div>
 </nav>
 
@@ -76,19 +77,20 @@
 <div id="toast"></div>
 <script src="../assets/js/shared.js"></script>
 <script>
-function render() {
-  const prog  = getGlobalProgress();
-  const flags = Store.getWeaknessFlags();
+async function render() {
+  await syncOnLoad();
+  const prog  = Progress.globalProgress();
+  const flags = Progress.getWeaknessFlags();
   const allFlags = Object.entries(flags).flatMap(([id, fs]) => fs.map(f => ({ specId: id, topic: f })));
 
-  // Build per-specialty data
-  const specData = SPECIALTIES.map(s => {
-    const st   = Store.getQuizStats(s.id);
+  // Build per-specialty data (async SBA fetch)
+  const specData = await Promise.all(SPECIALTIES.map(async s => {
+    const st   = Progress.getQuizStats(s.id);
     const acc  = st.answered > 0 ? Math.round(st.correct / st.answered * 100) : null;
     const fl   = flags[s.id] || [];
-    const sbas = Store.getSBAs(s.id).length;
-    return { ...s, stats: st, acc, flags: fl, sbas };
-  });
+    const qs   = await loadSBAs(s.id);
+    return { ...s, stats: st, acc, flags: fl, sbas: qs.length };
+  }));
 
   // Sort: those with data first, ranked by acc asc (weakest first); no data at end
   const withData    = specData.filter(s => s.acc !== null).sort((a,b) => a.acc - b.acc);
@@ -129,9 +131,9 @@ function render() {
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;flex:1">
-      <div class="stat-tile"><div class="stat-n">${prog.totalAnswered}</div><div class="stat-l">answered</div></div>
-      <div class="stat-tile"><div class="stat-n">${prog.totalCorrect}</div><div class="stat-l">correct</div></div>
-      <div class="stat-tile"><div class="stat-n">${prog.totalAnswered - prog.totalCorrect}</div><div class="stat-l">wrong</div></div>
+      <div class="stat-tile"><div class="stat-n">${prog.answered}</div><div class="stat-l">answered</div></div>
+      <div class="stat-tile"><div class="stat-n">${prog.correct}</div><div class="stat-l">correct</div></div>
+      <div class="stat-tile"><div class="stat-n">${prog.answered - prog.correct}</div><div class="stat-l">wrong</div></div>
       <div class="stat-tile"><div class="stat-n">${allFlags.length}</div><div class="stat-l">flags</div></div>
       <div class="stat-tile"><div class="stat-n">${withData.length}</div><div class="stat-l">specialties practised</div></div>
     </div>
@@ -194,7 +196,7 @@ function render() {
 }
 
 function rmFlag(specId, topic) {
-  Store.removeWeaknessFlag(specId, topic);
+  Progress.removeWeaknessFlag(specId, topic);
   showToast('Flag removed');
   render();
 }

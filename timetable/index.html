@@ -51,7 +51,8 @@
       <li><a href="../sba/index.html">SBA Bank</a></li>
       <li><a href="../weaknesses/index.html">Weaknesses</a></li>
     </ul>
-    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+    <a class="nav-admin" href="../settings/index.html" style="margin-right:6px">⚙ Sync</a>
+    <a class="nav-admin" href="../admin/index.html">Admin</a>
   </div>
 </nav>
 
@@ -129,7 +130,7 @@ const DAYS = [
   {d:30,label:"Full revision + OSCE prep",date:"May 12",module:"gp",tip:"Final consolidation. Practice OSCE communication frameworks: ICE, safety-netting, breaking bad news.",conditions:["Review all flagged/incomplete conditions","OSCE: ICE model","OSCE: breaking bad news","OSCE: consent","OSCE: safety-netting","Written: SAQs on highest-yield topics","Pharmacology review: key drugs per module"]}
 ];
 
-let checks = Store.getChecks();
+let checks = Progress.getChecks();
 let currentFilter = 'all';
 
 function totalConds() { return DAYS.reduce((n,d) => n + d.conditions.length, 0); }
@@ -194,7 +195,7 @@ function renderGrid() {
     card.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', e => {
         checks[e.target.dataset.key] = e.target.checked;
-        Store.saveChecks(checks);
+        Progress.saveChecks(checks);
         const n = dayDone(day), p = Math.round(n / tot * 100);
         card.querySelector('.prog-fill').style.width = p + '%';
         card.querySelector('.prog-label').textContent = n + '/' + tot;
