@@ -43,8 +43,9 @@ const _sbaCache = {};
 async function loadSBAs(specId) {
   if (_sbaCache[specId]) return _sbaCache[specId];
   try {
-    const url  = `${baseURL()}data/sba/${specId}.html`;
-    const resp = await fetch(url);
+    // Cache-bust with timestamp so GitHub Pages CDN doesn't serve stale file
+    const url  = `${baseURL()}data/sba/${specId}.html?v=${Date.now()}`;
+    const resp = await fetch(url, { cache: 'no-store' });
     if (!resp.ok) { _sbaCache[specId] = []; return []; }
     const html = await resp.text();
     const qs   = parseSBAHtml(html);
@@ -54,6 +55,12 @@ async function loadSBAs(specId) {
     _sbaCache[specId] = [];
     return [];
   }
+}
+
+/* Force re-fetch a specialty, bypassing cache */
+async function reloadSBAs(specId) {
+  delete _sbaCache[specId];
+  return loadSBAs(specId);
 }
 
 function parseSBAHtml(html) {
