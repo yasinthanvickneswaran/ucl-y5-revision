@@ -66,7 +66,9 @@
     <ul class="nav-links">
       <li><a href="../index.html">Home</a></li>
       <li><a href="../timetable/index.html">Timetable</a></li>
+      <li><a href="../specialties/index.html">Specialties</a></li>
       <li><a href="../sba/index.html">SBA Bank</a></li>
+      <li><a href="../weaknesses/index.html">Weaknesses</a></li>
     </ul>
     <a class="nav-admin" href="index.html" style="font-weight:600;color:var(--text)">⚙ Admin</a>
   </div>
@@ -141,9 +143,27 @@
         </div>
       </div>
 
+      <!-- HTML SBA import section -->
+      <div class="panel" style="margin-top:1rem">
+        <h2>Import SBAs from HTML file</h2>
+        <p style="font-size:0.78rem;color:var(--text2);margin-bottom:1rem;line-height:1.5">Upload an HTML file containing existing SBA questions (e.g. your GP document). Claude will extract the questions, options, and answers and import them directly.</p>
+        <div class="form-group">
+          <label>Specialty to import into</label>
+          <select id="import-spec-select">
+            <option value="">— choose —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>HTML file with SBA questions</label>
+          <input type="file" id="html-sba-file" accept=".html,.htm" style="font-size:0.82rem;width:100%"/>
+        </div>
+        <button class="btn btn-primary" onclick="importFromHTML()" style="width:100%;justify-content:center">✨ Extract &amp; import SBAs</button>
+        <div id="html-import-status" style="margin-top:0.75rem;font-size:0.78rem;color:var(--text2);display:none"></div>
+      </div>
+
       <!-- Import / Export section -->
       <div class="panel import-section" id="import" style="margin-top:1rem">
-        <h3>Export / Import</h3>
+        <h3>Export / Import JSON</h3>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="btn" onclick="exportAllSBAs()" style="justify-content:center">↓ Export all SBAs as JSON</button>
           <button class="btn" onclick="document.getElementById('import-input').click()" style="justify-content:center">↑ Import SBA JSON</button>
@@ -187,15 +207,19 @@
 // ── Init ──────────────────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
 
-// Populate specialty select
-const sel = document.getElementById('spec-select');
-SPECIALTIES.forEach(s => {
-  const o = document.createElement('option');
-  o.value = s.id;
-  o.textContent = s.label + ' (' + MODULE_LABELS[s.module] + ')';
-  sel.appendChild(o);
+// Populate both specialty selects
+[document.getElementById('spec-select'), document.getElementById('import-spec-select')].forEach(sel => {
+  SPECIALTIES.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.label + ' (' + MODULE_LABELS[s.module] + ')';
+    sel.appendChild(o);
+  });
 });
-if (params.get('spec')) sel.value = params.get('spec');
+if (params.get('spec')) {
+  document.getElementById('spec-select').value = params.get('spec');
+  document.getElementById('import-spec-select').value = params.get('spec');
+}
 
 // Load saved key
 const savedKey = Store.get('anthropic_key', '');
@@ -435,6 +459,86 @@ function clearPreview() {
 
 function showEditCard(qi, q) {
   showPreview([q], params.get('spec'));
+}
+
+// ── Import SBAs from HTML file ────────────────────────────────────────────────
+async function importFromHTML() {
+  const key    = Store.get('anthropic_key', '');
+  const specId = document.getElementById('import-spec-select').value;
+  const file   = document.getElementById('html-sba-file').files[0];
+  const status = document.getElementById('html-import-status');
+
+  if (!key)    { showError('Please save your Anthropic API key first.'); return; }
+  if (!specId) { showError('Please select a specialty to import into.'); return; }
+  if (!file)   { showError('Please select an HTML file.'); return; }
+
+  const specObj = SPECIALTIES.find(s => s.id === specId);
+  status.style.display = 'block';
+  status.textContent   = 'Reading file…';
+  hideError();
+
+  const htmlText = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = () => rej(new Error('Could not read file'));
+    r.readAsText(file);
+  }).catch(err => { showError(err.message); return null; });
+  if (!htmlText) return;
+
+  status.textContent = 'Extracting questions with Claude…';
+  setLoading(true, 'Extracting SBAs from HTML…');
+
+  const systemPrompt = `You are a medical education data extractor.
+The user will provide HTML containing SBA (Single Best Answer) questions.
+Extract ALL questions you find and return them as a JSON array.
+Rules:
+- Each question must have: stem (the question text/vignette), options (array of 5 strings), correct_index (0-4 integer), explanation (string, can be empty if not present)
+- If there are fewer than 5 options, pad with empty strings
+- If you cannot determine the correct answer, set correct_index to 0 and note it in explanation
+- Preserve the full question stem including any clinical vignette
+- Return ONLY valid JSON, no markdown, no preamble
+
+Format:
+{"questions":[{"stem":"...","options":["A","B","C","D","E"],"correct_index":0,"explanation":"..."}]}`;
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: "Extract all SBA questions from this HTML:\n\n" + htmlText.substring(0, 80000) }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'API error ' + resp.status);
+    }
+
+    const data  = await resp.json();
+    const raw   = data.content.map(b => b.type === 'text' ? b.text : '').join('').trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    const qs    = parsed.questions || parsed;
+
+    setLoading(false);
+
+    if (!qs.length) { showError('No questions found in the file.'); status.style.display='none'; return; }
+
+    // Show in preview for review before saving
+    status.textContent = `Found ${qs.length} questions — review below then save.`;
+    // Switch spec-select to match import spec
+    document.getElementById('spec-select').value = specId;
+    showPreview(qs, specId);
+    showToast(qs.length + ' questions extracted — review and save');
+  } catch (err) {
+    setLoading(false);
+    showError('Extraction failed: ' + err.message);
+    status.textContent = 'Failed.';
+  }
 }
 
 // ── Import ────────────────────────────────────────────────────────────────────

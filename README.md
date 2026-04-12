@@ -81,10 +81,11 @@ To sync across devices:
 
 | Module | Specialties |
 |--------|------------|
-| A – CFH | Child Health, CAMHS, GP |
+| A – CFH | Child Health, CAMHS |
 | B – WHMH | Breast, Dermatology, Sexual Health & HIV, Urology, Obstetrics & Gynaecology |
 | C – HOPE | Cancer Medicine, Care of the Older Person, Ophthalmology, Palliative Care, Psychiatry |
+| GP | General Practice (40 presentations) |
 
 ---
 
-## OSCE date: 30 June 2026
+## OSCE date: 30 June 2025

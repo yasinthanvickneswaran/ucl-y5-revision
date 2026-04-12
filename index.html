@@ -34,7 +34,9 @@
     <ul class="nav-links">
       <li><a href="index.html" class="active">Home</a></li>
       <li><a href="timetable/index.html">Timetable</a></li>
+      <li><a href="specialties/index.html">Specialties</a></li>
       <li><a href="sba/index.html">SBA Bank</a></li>
+      <li><a href="weaknesses/index.html">Weaknesses</a></li>
     </ul>
     <a class="nav-admin" href="admin/index.html">⚙ Admin</a>
   </div>
@@ -61,6 +63,18 @@
 
   <p class="section-title">Quick access</p>
   <div class="overview-grid">
+    <a class="overview-card" href="specialties/index.html">
+      <div class="ov-icon">🔬</div>
+      <div class="ov-title">Specialties</div>
+      <div class="ov-desc">Upload notes per specialty (Google Docs / UpNote HTML), view them rendered, and track your quiz accuracy.</div>
+      <div class="ov-stat" id="ov-specs">13 specialties</div>
+    </a>
+    <a class="overview-card" href="weaknesses/index.html">
+      <div class="ov-icon">⚠</div>
+      <div class="ov-title">Weaknesses</div>
+      <div class="ov-desc">Ranked by accuracy. Tracks quiz wrong answers and manual topic flags across all specialties.</div>
+      <div class="ov-stat" id="ov-weak">Loading...</div>
+    </a>
     <a class="overview-card" href="timetable/index.html">
       <div class="ov-icon">📅</div>
       <div class="ov-title">30-Day Timetable</div>
@@ -101,6 +115,15 @@
   const pct = Math.round(checkedCount / total * 100);
   document.getElementById('ov-timetable').textContent = checkedCount + ' / ' + total + ' conditions (' + pct + '%)';
   document.getElementById('ov-sbas').textContent = countAllSBAs() + ' questions across 13 specialties';
+
+  const prog = getGlobalProgress();
+  document.getElementById('ov-weak').textContent = prog.totalAnswered > 0
+    ? prog.pct + '% accuracy across ' + prog.totalAnswered + ' answered'
+    : 'No quiz data yet';
+
+  let notesCount = 0;
+  SPECIALTIES.forEach(s => { if (Store.getNotesHTML(s.id)) notesCount++; });
+  document.getElementById('ov-specs').textContent = notesCount + ' / 13 specialties have notes';
 </script>
 </body>
 </html>
