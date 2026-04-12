@@ -62,6 +62,23 @@
 .flag-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.5rem}
 .flag-add-row{display:flex;gap:8px;margin-top:0.75rem}
 .flag-add-row input{flex:1}
+
+/* ── Mode filter buttons ── */
+.mode-filter-btn {
+  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  font-size:0.82rem;font-weight:500;border:0.5px solid var(--border2);
+  border-radius:20px;cursor:pointer;background:var(--surface);
+  color:var(--text2);font-family:inherit;transition:all 0.15s;
+}
+.mode-filter-btn:hover { background:var(--surface2);color:var(--text); }
+.mode-filter-btn.mf-active { background:var(--purple);border-color:var(--purple);color:#fff; }
+.mf-count {
+  background:rgba(255,255,255,0.25);border-radius:10px;
+  padding:1px 7px;font-size:0.72rem;font-weight:600;
+}
+.mode-filter-btn:not(.mf-active) .mf-count {
+  background:var(--surface2);color:var(--text3);
+}
 </style>
 </head>
 <body>
@@ -93,7 +110,6 @@ const specId  = params.get('id');
 const initTab = params.get('tab') || 'notes';
 const spec    = SPECIALTIES.find(s => s.id === specId);
 let   SBAs    = [];
-let   quizMode = false, quizScore = 0, quizTotal = 0;
 
 if (!spec) {
   document.getElementById('page-body').innerHTML = '<div class="empty-state"><h2>Specialty not found</h2><a href="index.html" class="btn">Back</a></div>';
@@ -245,10 +261,60 @@ function replaceNotes() { if (confirm('Replace existing notes?')) { Progress.sav
 function deleteNotes()  { if (confirm('Delete notes?')) { Progress.saveNotesHTML(specId,''); showToast('Notes deleted'); renderNotes(); } }
 
 /* ── SBA QUIZ ── */
+let quizQueue  = [];   // questions in current session (subset of SBAs)
+let quizCursor = 0;    // index into quizQueue
+let sessionCorrect = 0;
+let sessionTotal   = 0;
+let currentMode    = 'new'; // 'new' | 'incorrect' | 'all'
+
+function getWrongStemSet() {
+  const stats = Progress.getQuizStats(specId);
+  return new Set((stats.wrong||[]).map(w => w.stem));
+}
+
+function getAnsweredStemSet() {
+  // We track answered by storing stems of wrong answers + correct count isn't per-question
+  // Use a separate per-question answered map stored in Progress
+  return Progress._get(`answered_${specId}`, {});
+}
+
+function markQuestionAnswered(stemKey) {
+  const map = Progress._get(`answered_${specId}`, {});
+  map[stemKey] = (map[stemKey]||0) + 1;
+  Progress._set(`answered_${specId}`, map);
+  Progress._schedulePush();
+}
+
+function buildQueue(mode) {
+  const answeredMap = getAnsweredStemSet();
+  const wrongSet    = getWrongStemSet();
+  if (mode === 'new') {
+    const q = SBAs.filter(q => !answeredMap[q.stem.substring(0,80)]);
+    return q.length ? q : SBAs; // fallback to all if all answered
+  }
+  if (mode === 'incorrect') {
+    const q = SBAs.filter(q => wrongSet.has(q.stem.substring(0,120)));
+    return q.length ? q : [];
+  }
+  return [...SBAs]; // all — shuffled
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
 function renderSBA() {
   const panel = document.getElementById('tab-sba');
   const stats = Progress.getQuizStats(specId);
   const acc   = stats.answered > 0 ? Math.round(stats.correct/stats.answered*100) : null;
+  const answeredMap = getAnsweredStemSet();
+  const newCount    = SBAs.filter(q => !answeredMap[q.stem.substring(0,80)]).length;
+  const wrongCount  = SBAs.filter(q => getWrongStemSet().has(q.stem.substring(0,120))).length;
 
   if (!SBAs.length) {
     panel.innerHTML = `<div class="empty-state"><h2>No SBAs yet for ${spec.label}</h2><p>Ask Claude to generate a <code>data/sba/${specId}.html</code> file and commit it to your repo.</p></div>`;
@@ -256,96 +322,154 @@ function renderSBA() {
   }
 
   panel.innerHTML = `
-    <div class="quiz-toolbar">
-      <h3>${SBAs.length} questions</h3>
-      ${acc!==null?`<span style="font-size:0.8rem;color:var(--text2)">Accuracy: <strong style="color:${acc>=80?'var(--teal)':acc<60?'var(--red)':'var(--text)'}">${acc}%</strong> (${stats.answered} answered)</span>`:''}
-      <button class="btn btn-primary" id="quiz-btn" onclick="startQuiz()">Start quiz</button>
-      <button class="btn btn-sm" onclick="if(confirm('Reset stats?')){Progress.clearQuizStats(specId);renderSBA();showToast('Stats reset');}">Reset stats</button>
+    <div style="margin-bottom:1.25rem">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.75rem">
+        <span style="font-size:0.875rem;font-weight:600">${SBAs.length} questions</span>
+        ${acc!==null?`<span style="font-size:0.8rem;color:var(--text2)">Accuracy: <strong style="color:${acc>=80?'var(--teal)':acc<60?'var(--red)':'var(--text)'}">${acc}%</strong> (${stats.answered} answered)</span>`:''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+        <button class="mode-filter-btn${currentMode==='new'?' mf-active':''}" onclick="setMode('new')">
+          New <span class="mf-count">${newCount}</span>
+        </button>
+        <button class="mode-filter-btn${currentMode==='incorrect'?' mf-active':''}" onclick="setMode('incorrect')">
+          Incorrect <span class="mf-count">${wrongCount}</span>
+        </button>
+        <button class="mode-filter-btn${currentMode==='all'?' mf-active':''}" onclick="setMode('all')">
+          All <span class="mf-count">${SBAs.length}</span>
+        </button>
+      </div>
+      <button class="btn" onclick="if(confirm('Reset all stats and progress for this specialty?')){Progress.clearQuizStats(specId);Progress._set('answered_${specId}',{});renderSBA();showToast('Stats reset');}">Reset stats</button>
     </div>
     <div id="score-banner" class="score-banner"></div>
-    <div id="q-list"></div>`;
-  renderQList(false);
+    <div id="q-card-wrap"></div>`;
+
+  startSession(currentMode);
 }
 
-function renderQList(quiz) {
-  const list = document.getElementById('q-list');
-  list.innerHTML = ''; quizScore=0; quizTotal=0;
+function setMode(mode) {
+  currentMode = mode;
+  renderSBA();
+}
+
+function startSession(mode) {
+  const raw = buildQueue(mode);
+  if (!raw.length) {
+    document.getElementById('q-card-wrap').innerHTML = `
+      <div class="empty-state" style="padding:2rem">
+        <p style="font-size:0.875rem;color:var(--text2)">${mode==='incorrect'?'No incorrect answers recorded yet — answer some questions first.':'No questions available in this mode.'}</p>
+        <button class="btn" style="margin-top:1rem" onclick="setMode('all')">Switch to All questions</button>
+      </div>`;
+    return;
+  }
+  quizQueue     = mode==='all' ? shuffle(raw) : raw;
+  quizCursor    = 0;
+  sessionCorrect = 0;
+  sessionTotal   = 0;
+  renderCard();
+}
+
+function renderCard() {
+  const wrap = document.getElementById('q-card-wrap');
+  if (!wrap) return;
+
+  if (quizCursor >= quizQueue.length) {
+    showSessionEnd();
+    return;
+  }
+
+  const q       = quizQueue[quizCursor];
+  const qi      = quizCursor;
   const letters = ['A','B','C','D','E'];
-  SBAs.forEach((q, qi) => {
-    const card = document.createElement('div');
-    card.className = 'sba-q-card'; card.dataset.qi = qi;
-    const optsHtml = q.options.map((opt,oi) => `<li data-oi="${oi}" onclick="answerQ(this,${qi},${oi})"><span class="ltr">${letters[oi]}.</span><span>${opt}</span></li>`).join('');
-    card.innerHTML = `
-      <div class="q-label"><span>Q${qi+1} / ${SBAs.length}</span></div>
+  const total   = quizQueue.length;
+  const pct     = Math.round((quizCursor / total) * 100);
+
+  const optsHtml = q.options.map((opt,oi) =>
+    opt ? `<li data-oi="${oi}" onclick="answerQ(this,${oi})">
+      <span class="ltr">${letters[oi]}.</span><span>${opt}</span>
+    </li>` : ''
+  ).filter(Boolean).join('');
+
+  wrap.innerHTML = `
+    <div style="margin-bottom:0.75rem">
+      <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text3);margin-bottom:4px">
+        <span>${quizCursor+1} / ${total}</span>
+        <span>${sessionCorrect} correct so far</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="sba-q-card" id="current-card">
+      <div class="q-label" style="display:flex;justify-content:space-between">
+        <span style="text-transform:uppercase;letter-spacing:0.05em">${currentMode==='new'?'New':currentMode==='incorrect'?'Incorrect':'Question'}</span>
+      </div>
       <div class="q-stem">${q.stem}</div>
       ${q.image?`<div class="q-image"><img src="${q.image}" alt="question image"/></div>`:''}
-      <ul class="q-opts">${optsHtml}</ul>
-      <div class="q-exp" id="exp-${qi}">${q.explanation||''}</div>
-      ${!quiz?`<div class="q-footer">
-        <input type="text" class="flag-topic-input" placeholder="Flag a weak topic…" id="flag-input-${qi}"/>
-        <button class="btn btn-sm" style="color:var(--red)" onclick="flagTopic(${qi})">⚑ Flag</button>
-      </div>`:''}`;
-    list.appendChild(card);
-  });
+      <ul class="q-opts" id="opts-list">${optsHtml}</ul>
+      <div class="q-exp" id="q-exp">${q.explanation||''}</div>
+      <div id="q-nav" style="display:none;margin-top:1rem;display:none">
+        <button class="btn btn-primary" onclick="nextCard()" style="width:100%;justify-content:center">Next →</button>
+      </div>
+    </div>`;
 }
 
-function answerQ(li, qi, oi) {
-  const card = document.querySelector(`[data-qi="${qi}"]`);
-  const opts = card.querySelectorAll('.q-opts li');
-  if (opts[0].classList.contains('locked')) return;
+function answerQ(li, oi) {
+  const opts    = document.querySelectorAll('#opts-list li');
+  if (opts[0]?.classList.contains('locked')) return;
   opts.forEach(o => o.classList.add('locked'));
-  const q       = SBAs[qi];
+
+  const q       = quizQueue[quizCursor];
   const correct = q.correct_index ?? 0;
   const isRight = oi === correct;
   const letters = ['A','B','C','D','E'];
-  if (isRight) { li.classList.add('correct'); }
-  else { li.classList.add('wrong'); opts[correct].classList.add('reveal'); }
-  const exp = document.getElementById('exp-'+qi);
-  if (exp && exp.textContent.trim()) exp.style.display = 'block';
+
+  if (isRight) { li.classList.add('correct'); sessionCorrect++; }
+  else {
+    li.classList.add('wrong');
+    opts[correct]?.classList.add('reveal');
+  }
+
+  const exp = document.getElementById('q-exp');
+  if (exp?.textContent.trim()) exp.style.display = 'block';
+
+  // Show next button
+  document.getElementById('q-nav').style.display = 'block';
+
+  // Record
+  const stemKey = q.stem.substring(0,80);
+  markQuestionAnswered(stemKey);
+  sessionTotal++;
+
   Progress.recordAnswer(specId, isRight, isRight ? null : {
-    stem: q.stem.substring(0,120),
+    stem:          q.stem.substring(0,120),
     correct_label: letters[correct]+'. '+(q.options[correct]||''),
     chosen_label:  letters[oi]+'. '+(q.options[oi]||''),
-    ts: Date.now()
+    ts:            Date.now()
   });
-  if (quizMode) { quizTotal++; if(isRight) quizScore++; if(quizTotal===SBAs.length) showQuizScore(); }
 }
 
-function startQuiz() {
-  quizMode=true; quizScore=0; quizTotal=0;
-  const btn = document.getElementById('quiz-btn');
-  btn.textContent='End quiz'; btn.onclick=endQuiz;
-  document.getElementById('score-banner').style.display='none';
-  renderQList(true);
+function nextCard() {
+  quizCursor++;
+  renderCard();
 }
-function endQuiz() {
-  quizMode=false;
-  const btn = document.getElementById('quiz-btn');
-  btn.textContent='Start quiz'; btn.onclick=startQuiz;
-  showQuizScore(); renderSBA();
-}
-function showQuizScore() {
-  const pct    = SBAs.length>0?Math.round(quizScore/SBAs.length*100):0;
+
+function showSessionEnd() {
+  const pct    = sessionTotal>0 ? Math.round(sessionCorrect/sessionTotal*100) : 0;
   const colour = pct>=80?'var(--teal)':pct>=60?'#EF9F27':'var(--red)';
   const bg     = pct>=80?'var(--teal-bg)':pct>=60?'var(--amber-bg)':'var(--red-bg)';
   const border = pct>=80?'var(--teal)':pct>=60?'#EF9F27':'#e24b4a';
   const emoji  = pct>=80?'🎯':pct>=60?'👍':'📖';
-  const msg    = pct>=80?'Excellent — at or above target!':pct>=60?'Good — review the ones you missed.':'This topic needs more work.';
-  const banner = document.getElementById('score-banner');
-  if (!banner) return;
-  banner.style.cssText = `background:${bg};border:0.5px solid ${border};border-radius:var(--radius-lg);padding:1.1rem 1.4rem;margin-bottom:1.25rem;display:block;text-align:center`;
-  banner.innerHTML = `<h2 style="color:${colour}">${emoji} ${quizScore}/${SBAs.length} (${pct}%)</h2><p>${msg}</p>`;
-  banner.scrollIntoView({behavior:'smooth',block:'nearest'});
-}
+  const msg    = pct>=80?'Excellent — at or above target!':pct>=60?'Good — review the incorrect ones.':'Review your notes and try again.';
 
-function flagTopic(qi) {
-  const inp = document.getElementById('flag-input-'+qi);
-  const topic = inp?.value.trim();
-  if (!topic) { showToast('Enter a topic to flag'); return; }
-  Progress.addWeaknessFlag(specId, topic);
-  inp.value = '';
-  showToast('Flagged: '+topic);
-  renderWeaknesses();
+  document.getElementById('q-card-wrap').innerHTML = `
+    <div style="background:${bg};border:0.5px solid ${border};border-radius:var(--radius-lg);padding:1.5rem;text-align:center;margin-bottom:1rem">
+      <div style="font-size:2rem;margin-bottom:0.5rem">${emoji}</div>
+      <h2 style="font-size:1.6rem;font-weight:800;color:${colour};margin-bottom:0.25rem">${sessionCorrect} / ${sessionTotal} (${pct}%)</h2>
+      <p style="font-size:0.875rem;color:var(--text2);margin-bottom:1.25rem">${msg}</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="startSession('${currentMode}')">Restart ${currentMode}</button>
+        ${currentMode!=='incorrect'?`<button class="btn" onclick="setMode('incorrect')">Review incorrect</button>`:''}
+        <button class="btn" onclick="setMode('all')">All questions</button>
+      </div>
+    </div>`;
 }
 
 /* ── WEAKNESSES ── */
