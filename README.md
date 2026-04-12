@@ -81,10 +81,9 @@ To sync across devices:
 
 | Module | Specialties |
 |--------|------------|
-| A – CFH | Child Health, CAMHS |
+| A – CFH | Child Health, CAMHS, GP |
 | B – WHMH | Breast, Dermatology, Sexual Health & HIV, Urology, Obstetrics & Gynaecology |
 | C – HOPE | Cancer Medicine, Care of the Older Person, Ophthalmology, Palliative Care, Psychiatry |
-| GP | General Practice (40 presentations) |
 
 ---
 
