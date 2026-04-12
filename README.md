@@ -88,4 +88,4 @@ To sync across devices:
 
 ---
 
-## OSCE date: 30 June 2025
+## OSCE date: 30 June 2026
