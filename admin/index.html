@@ -1163,6 +1163,7 @@ ${qBlocks}
 
     const result = await resp.json();
     repoFileSHA  = result.content.sha; // update SHA for next commit
+    delete _sbaCache[editSpecId];      // bust cache so next load fetches fresh
     setLoading('manual', false);
     document.getElementById('commit-msg').textContent = `✓ Committed! ${editQuestions.length} questions in ${editSpecId}.html — GitHub Actions will redeploy in ~60s`;
     showToast('Committed to GitHub successfully');
