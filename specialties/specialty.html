@@ -337,6 +337,7 @@ function renderSBA() {
         <button class="mode-filter-btn${currentMode==='all'?' mf-active':''}" onclick="setMode('all')">
           All <span class="mf-count">${SBAs.length}</span>
         </button>
+        <button class="mode-filter-btn" onclick="reloadQuestions()" title="Reload questions from repo (use after editing)">↻ Reload</button>
       </div>
       <button class="btn" onclick="if(confirm('Reset all stats and progress for this specialty?')){Progress.clearQuizStats(specId);Progress._set('answered_${specId}',{});renderSBA();showToast('Stats reset');}">Reset stats</button>
     </div>
@@ -348,6 +349,14 @@ function renderSBA() {
 
 function setMode(mode) {
   currentMode = mode;
+  renderSBA();
+}
+
+async function reloadQuestions() {
+  const btn = document.querySelector('[onclick="reloadQuestions()"]');
+  if (btn) { btn.textContent = '↻ Reloading…'; btn.disabled = true; }
+  SBAs = await reloadSBAs(specId);
+  showToast(`Reloaded — ${SBAs.length} questions`);
   renderSBA();
 }
 
