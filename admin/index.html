@@ -219,16 +219,15 @@
           <!-- Bulk paste -->
           <div id="manual-bulk" class="manual-panel">
             <div class="bulk-hint">
-              Paste questions in any format. Parser recognises:<br>
-              <code>1. stem</code> or <code>Q: stem</code> — options as <code>A) / A. / (A)</code> — answer as <code>Answer: B</code> or <code>Correct: C</code> — explanation as <code>Explanation: ...</code><br>
-              Uses Claude API to parse loose formats.
+              Paste questions in any format. No API key needed — parsed entirely in your browser.<br>
+              Recognises: <code>1. stem</code> or <code>Q: stem</code> — options as <code>A) / A. / (A)</code> — answer as <code>Answer: B</code> or <code>Correct: C</code> — explanation as <code>Explanation: ...</code>
             </div>
             <div class="form-group">
               <label>Paste your questions</label>
               <textarea id="bulk-text" rows="14" placeholder="1. A 45-year-old man presents with chest pain...&#10;A) Aortic dissection&#10;B) NSTEMI&#10;C) Pericarditis&#10;D) Pulmonary embolism&#10;E) Costochondritis&#10;Answer: B&#10;Explanation: Troponin rise...&#10;&#10;2. ..."></textarea>
             </div>
             <button class="btn btn-primary" id="bulk-parse-btn" onclick="bulkParse()" style="width:100%;justify-content:center">Parse questions →</button>
-            <p style="font-size:0.72rem;color:var(--text3);margin-top:6px">Requires API key. If you have no key, use the HTML import tab instead.</p>
+            <p id="bulk-parse-status" style="font-size:0.78rem;color:var(--text2);margin-top:0.75rem;display:none"></p>
           </div>
 
           <!-- HTML import — no API key -->
@@ -568,44 +567,31 @@ function addSingleQuestion() {
 }
 
 /* ══════════════════════════════════════════════════
-   MANUAL — BULK PASTE (API)
+   MANUAL — BULK PASTE (client-side, no API key)
 ══════════════════════════════════════════════════ */
-async function bulkParse() {
-  const key    = Store.get('anthropic_key','');
+function bulkParse() {
   const specId = document.getElementById('manual-spec-select').value;
   const text   = document.getElementById('bulk-text').value.trim();
+  const status = document.getElementById('bulk-parse-status');
 
-  if (!key)   { showErr('manual','API key needed for bulk parsing — use HTML import tab for no-key option.'); return; }
   if (!specId){ showErr('manual','Select a specialty.'); return; }
   if (!text)  { showErr('manual','Paste some questions first.'); return; }
 
   hideErr('manual');
-  setLoading('manual', true, 'Parsing questions…');
+  status.style.display = 'block';
+  status.textContent   = 'Parsing…';
 
-  const system=`You are a medical education question parser.
-Extract ALL SBA questions from the text however loosely formatted.
-Return ONLY valid JSON, no markdown.
-Format: {"questions":[{"stem":"...","options":["","","","",""],"correct_index":0,"explanation":"..."}]}
-Rules: pad options to exactly 5; correct_index is 0-based (A=0,B=1,C=2,D=3,E=4); if unknown set 0 and note in explanation.`;
+  // Re-use the same parser as HTML import, treating plain text as-is
+  const qs = parseHTMLQuestions(text);
 
-  try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:6000,system,messages:[{role:"user",content:"Parse:\n\n"+text}]})
-    });
-    if (!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'API error '+resp.status);}
-    const data  = await resp.json();
-    const raw   = data.content.map(b=>b.type==='text'?b.text:'').join('').trim();
-    const qs    = JSON.parse(raw.replace(/```json|```/g,'')).questions;
-    setLoading('manual',false);
-    if (!qs?.length){ showErr('manual','No questions found — check format.'); return; }
-    showPreview(qs, specId, 'manual');
-    showToast(qs.length+' questions parsed');
-  } catch(err) {
-    setLoading('manual',false);
-    showErr('manual','Parsing failed: '+err.message);
+  if (!qs.length) {
+    status.textContent = 'No questions detected. Check your format — questions should start with a number (e.g. "1.") or "Q:" and options should start with A) B) C) etc.';
+    return;
   }
+
+  status.textContent = qs.length + ' questions found — see preview panel →';
+  showPreview(qs, specId, 'manual');
+  showToast(qs.length + ' questions parsed');
 }
 
 /* ══════════════════════════════════════════════════
@@ -759,10 +745,6 @@ function setLoading(mode, on, msg) {
   if (mode==='ai') {
     const btn=document.getElementById('gen-btn');
     btn.disabled=on; btn.textContent=on?'Generating…':'✨ Generate SBAs';
-  }
-  if (mode==='manual') {
-    const btn=document.getElementById('bulk-parse-btn');
-    if (btn){ btn.disabled=on; btn.textContent=on?'Parsing…':'Parse questions →'; }
   }
 }
 function showErr(mode,msg){ const el=document.getElementById(mode+'-error'); if(el){el.textContent=msg;el.style.display='block';} }
