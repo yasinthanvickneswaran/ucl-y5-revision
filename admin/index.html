@@ -66,6 +66,19 @@
 .empty-right p { font-size:0.875rem;max-width:300px;margin:0 auto;line-height:1.6; }
 .bulk-hint { font-size:0.75rem;color:var(--text3);line-height:1.6;margin-bottom:0.875rem;background:var(--surface2);padding:9px 11px;border-radius:7px; }
 .bulk-hint code { background:var(--surface);padding:1px 4px;border-radius:3px;font-size:0.72rem; }
+
+/* ── Edit existing ── */
+.edit-q-card { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:0.625rem;transition:border-color 0.15s; }
+.edit-q-card:hover { border-color:var(--border2); }
+.edit-q-card.editing { border-color:var(--purple);background:var(--purple-bg); }
+.edit-q-num { font-size:0.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center; }
+.edit-q-stem-preview { font-size:0.83rem;font-weight:500;line-height:1.5;margin-bottom:6px;cursor:pointer; }
+.edit-q-answer { font-size:0.75rem;color:var(--teal); }
+.edit-actions { display:flex;gap:6px;margin-top:8px; }
+.commit-bar { background:var(--teal-bg);border:0.5px solid var(--teal);border-radius:var(--radius-lg);padding:0.875rem 1.1rem;margin-bottom:1rem;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+.commit-bar p { font-size:0.83rem;color:#085041;font-weight:500;margin:0; }
+.github-setup { background:var(--amber-bg);border:0.5px solid #EF9F27;border-radius:var(--radius-lg);padding:1rem 1.1rem;margin-bottom:1rem;font-size:0.82rem;color:var(--amber);line-height:1.6; }
+.github-setup a { color:var(--amber);font-weight:600; }
 </style>
 </head>
 <body>
@@ -197,6 +210,7 @@
             <button class="manual-src-tab active" onclick="switchManualTab('single',this)">Single question</button>
             <button class="manual-src-tab" onclick="switchManualTab('bulk',this)">Bulk paste</button>
             <button class="manual-src-tab" onclick="switchManualTab('html',this)">HTML import &nbsp;<span class="no-key-badge">no key needed</span></button>
+            <button class="manual-src-tab" onclick="switchManualTab('edit',this)">Edit existing</button>
           </div>
 
           <!-- Single question -->
@@ -254,6 +268,28 @@
             </p>
             <button class="btn" onclick="htmlImportWithAI()" style="width:100%;justify-content:center">✨ Extract with Claude (API key)</button>
           </div>
+
+          <!-- Edit existing — loads from repo, edits and commits back -->
+          <div id="manual-edit" class="manual-panel">
+            <div id="github-setup-warn" class="github-setup" style="display:none">
+              ⚠ GitHub repo token needed to load and save questions.<br>
+              Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> → classic token → tick <strong>repo</strong> scope → save below.
+            </div>
+            <div class="form-group">
+              <label>GitHub token <span style="font-weight:400;color:var(--text3)">(needs <code style="font-size:0.72rem;background:var(--surface2);padding:1px 4px;border-radius:3px">repo</code> scope)</span></label>
+              <div style="display:flex;gap:8px">
+                <input type="password" id="gh-token" placeholder="ghp_..." style="flex:1;font-family:monospace;font-size:0.75rem"/>
+                <button class="btn" onclick="saveGhToken()">Save</button>
+              </div>
+              <p style="font-size:0.7rem;color:var(--text3);margin-top:4px">Stored only in your browser. Used only to read/write files in your repo.</p>
+            </div>
+            <div class="form-group">
+              <label>Repo <span style="font-weight:400;color:var(--text3)">(owner/repo)</span></label>
+              <input type="text" id="gh-repo" value="yasinthanvickneswaran/ucl-y5-revision" placeholder="username/repo-name"/>
+            </div>
+            <button class="btn btn-primary" id="load-qs-btn" onclick="loadExistingQuestions()" style="width:100%;justify-content:center">Load questions from repo →</button>
+            <p id="edit-load-status" style="font-size:0.78rem;color:var(--text2);margin-top:0.75rem;display:none"></p>
+          </div>
         </div>
       </div>
 
@@ -263,6 +299,25 @@
           <div class="spinner"></div>
           <p id="manual-loading-msg">Parsing questions...</p>
         </div>
+
+        <!-- Commit bar — shown when editing existing questions -->
+        <div class="commit-bar" id="commit-bar">
+          <p id="commit-msg">Questions loaded — edit or delete, then commit to save.</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="commitToRepo()">↑ Commit to GitHub</button>
+            <button class="btn" onclick="clearEditMode()">Discard changes</button>
+          </div>
+        </div>
+
+        <!-- Edit list — existing questions from repo -->
+        <div id="edit-list" style="display:none"></div>
+
+        <!-- Add question inline when editing -->
+        <div id="edit-add-bar" style="display:none;margin-bottom:1rem">
+          <button class="btn btn-primary" onclick="addNewToEdit()" style="width:100%;justify-content:center">+ Add new question to this file</button>
+        </div>
+
+        <!-- Regular preview queue (for single/bulk/html tabs) -->
         <div class="save-bar" id="manual-save-bar">
           <p id="manual-save-msg"></p>
           <div style="display:flex;gap:7px">
@@ -274,7 +329,7 @@
         <div id="manual-preview-list"></div>
         <div class="empty-right" id="manual-empty">
           <div class="icon">✏️</div>
-          <p>Add a single question, bulk-paste your own, or upload an HTML file — no API key needed for the last option.</p>
+          <p>Add a single question, bulk-paste your own, upload an HTML file, or load existing questions from the repo to edit.</p>
         </div>
       </div>
     </div>
@@ -839,6 +894,283 @@ function liveImgPreview(mode, qi) {
 }
 
 function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ══════════════════════════════════════════════════
+   EDIT EXISTING — GitHub API read/write
+══════════════════════════════════════════════════ */
+let editSpecId   = '';   // which specialty is loaded
+let editQuestions = [];  // live array being edited
+let repoFileSHA  = '';   // SHA needed for GitHub update
+
+// Init stored token/repo
+(function() {
+  const t = _ls.getStr('gh_token');
+  const r = _ls.getStr('gh_repo') || 'yasinthanvickneswaran/ucl-y5-revision';
+  if (t) document.getElementById('gh-token').value = t;
+  document.getElementById('gh-repo').value = r;
+  if (!t) document.getElementById('github-setup-warn').style.display = 'block';
+})();
+
+function saveGhToken() {
+  const t = document.getElementById('gh-token').value.trim();
+  const r = document.getElementById('gh-repo').value.trim();
+  if (!t) return;
+  _ls.setStr('gh_token', t);
+  _ls.setStr('gh_repo', r);
+  document.getElementById('github-setup-warn').style.display = 'none';
+  showToast('GitHub token saved');
+}
+
+async function loadExistingQuestions() {
+  const token  = _ls.getStr('gh_token');
+  const repo   = document.getElementById('gh-repo').value.trim() || 'yasinthanvickneswaran/ucl-y5-revision';
+  const specId = document.getElementById('manual-spec-select').value;
+  const status = document.getElementById('edit-load-status');
+
+  if (!token)  { showErr('manual','Save your GitHub token first.'); return; }
+  if (!specId) { showErr('manual','Select a specialty first.'); return; }
+
+  hideErr('manual');
+  status.style.display = 'block';
+  status.textContent   = 'Loading from repo…';
+  setLoading('manual', true, 'Fetching questions from GitHub…');
+
+  const path = `data/sba/${specId}.html`;
+  const url  = `https://api.github.com/repos/${repo}/contents/${path}`;
+
+  try {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }
+    });
+    if (!resp.ok) {
+      if (resp.status === 404) throw new Error(`File not found: ${path} — has it been committed to the repo?`);
+      throw new Error('GitHub API error ' + resp.status);
+    }
+    const data    = await resp.json();
+    repoFileSHA   = data.sha;
+    const decoded = atob(data.content.replace(/\n/g,''));
+    const html    = new TextDecoder().decode(Uint8Array.from(decoded, c => c.charCodeAt(0)));
+
+    // Parse questions using existing parser
+    editQuestions = parseSBAHtml(html);
+    editSpecId    = specId;
+
+    if (!editQuestions.length) throw new Error('No questions found in file — check the HTML structure.');
+
+    setLoading('manual', false);
+    status.textContent = `Loaded ${editQuestions.length} questions from ${path}`;
+    renderEditList();
+  } catch(err) {
+    setLoading('manual', false);
+    showErr('manual', 'Load failed: ' + err.message);
+    status.textContent = 'Failed.';
+  }
+}
+
+function renderEditList() {
+  const list    = document.getElementById('edit-list');
+  const LETTERS = ['A','B','C','D','E'];
+  list.style.display = 'block';
+  document.getElementById('edit-add-bar').style.display = 'block';
+  document.getElementById('commit-bar').style.display   = 'flex';
+  document.getElementById('commit-msg').textContent     = `${editQuestions.length} questions loaded from ${editSpecId} — edit, delete or add, then commit.`;
+  document.getElementById('manual-empty').style.display = 'none';
+  document.getElementById('manual-save-bar').style.display = 'none';
+
+  list.innerHTML = '';
+  editQuestions.forEach((q, qi) => {
+    const card = document.createElement('div');
+    card.className = 'edit-q-card';
+    card.id = `eq-${qi}`;
+
+    const correctLetter = LETTERS[q.correct_index ?? 0];
+    const correctText   = q.options[q.correct_index ?? 0] || '';
+
+    card.innerHTML = `
+      <div class="edit-q-num">
+        <span>Q${qi+1} of ${editQuestions.length}</span>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-sm" onclick="openEditCard(${qi})">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteEditQ(${qi})">Delete</button>
+        </div>
+      </div>
+      <div class="edit-q-stem-preview" onclick="openEditCard(${qi})">${escHtml(q.stem.substring(0,120))}${q.stem.length>120?'…':''}</div>
+      <div class="edit-q-answer">✓ ${correctLetter}. ${escHtml(correctText.substring(0,60))}</div>
+      <div id="eq-form-${qi}" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
+        <div class="form-group">
+          <label>Stem</label>
+          <textarea id="eq-stem-${qi}" rows="4" style="font-size:0.83rem">${escHtml(q.stem)}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Image URL (optional)</label>
+          <input type="text" id="eq-img-${qi}" value="${escHtml(q.image||'')}" placeholder="https://..."/>
+        </div>
+        <div class="form-group">
+          <div class="correct-label">Options — radio = correct answer</div>
+          ${q.options.map((opt,oi) => `
+            <div class="opt-row">
+              <span class="opt-letter">${LETTERS[oi]}.</span>
+              <input type="text" id="eq-opt-${qi}-${oi}" value="${escHtml(opt)}"/>
+              <input type="radio" name="eq-correct-${qi}" value="${oi}" ${(q.correct_index??0)===oi?'checked':''} title="Correct answer"/>
+            </div>`).join('')}
+        </div>
+        <div class="form-group">
+          <label>Explanation</label>
+          <textarea id="eq-exp-${qi}" rows="2" style="font-size:0.8rem">${escHtml(q.explanation||'')}</textarea>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveEditCard(${qi})">Save changes</button>
+          <button class="btn btn-sm" onclick="closeEditCard(${qi})">Cancel</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function openEditCard(qi) {
+  // Close any other open forms
+  document.querySelectorAll('[id^="eq-form-"]').forEach(el => { el.style.display = 'none'; });
+  document.querySelectorAll('.edit-q-card').forEach(el => el.classList.remove('editing'));
+  document.getElementById(`eq-form-${qi}`).style.display = 'block';
+  document.getElementById(`eq-${qi}`).classList.add('editing');
+  document.getElementById(`eq-${qi}`).scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function closeEditCard(qi) {
+  document.getElementById(`eq-form-${qi}`).style.display = 'none';
+  document.getElementById(`eq-${qi}`).classList.remove('editing');
+}
+
+function saveEditCard(qi) {
+  const LETTERS = ['A','B','C','D','E'];
+  const stem    = document.getElementById(`eq-stem-${qi}`).value.trim();
+  const img     = document.getElementById(`eq-img-${qi}`).value.trim();
+  const exp     = document.getElementById(`eq-exp-${qi}`).value.trim();
+  const opts    = [0,1,2,3,4].map(oi => (document.getElementById(`eq-opt-${qi}-${oi}`)?.value||'').trim());
+  const correct = parseInt(document.querySelector(`input[name="eq-correct-${qi}"]:checked`)?.value ?? 0);
+
+  if (!stem) { showToast('Stem cannot be empty'); return; }
+
+  editQuestions[qi] = { stem, options: opts, correct_index: correct, explanation: exp, ...(img && { image: img }) };
+
+  document.getElementById('commit-msg').textContent = `${editQuestions.length} questions — ${countUnsaved()} unsaved change(s)`;
+  showToast('Question updated — remember to commit');
+  renderEditList();
+}
+
+function deleteEditQ(qi) {
+  if (!confirm(`Delete question ${qi+1}? This cannot be undone until you commit.`)) return;
+  editQuestions.splice(qi, 1);
+  document.getElementById('commit-msg').textContent = `${editQuestions.length} questions — ${countUnsaved()} unsaved change(s)`;
+  showToast(`Question deleted — ${editQuestions.length} remaining`);
+  renderEditList();
+}
+
+function addNewToEdit() {
+  editQuestions.push({ stem:'', options:['','','','',''], correct_index:0, explanation:'' });
+  renderEditList();
+  // Open the new (last) card for editing
+  const qi = editQuestions.length - 1;
+  setTimeout(() => openEditCard(qi), 50);
+}
+
+function countUnsaved() {
+  // Simple counter — in practice just show total
+  return editQuestions.length;
+}
+
+function clearEditMode() {
+  if (!confirm('Discard all changes and clear the editor?')) return;
+  editQuestions = []; editSpecId = ''; repoFileSHA = '';
+  document.getElementById('edit-list').style.display   = 'none';
+  document.getElementById('edit-add-bar').style.display = 'none';
+  document.getElementById('commit-bar').style.display  = 'none';
+  document.getElementById('manual-empty').style.display = 'block';
+  document.getElementById('edit-load-status').style.display = 'none';
+  showToast('Changes discarded');
+}
+
+async function commitToRepo() {
+  const token = _ls.getStr('gh_token');
+  const repo  = document.getElementById('gh-repo').value.trim() || 'yasinthanvickneswaran/ucl-y5-revision';
+  if (!token)       { showErr('manual','No GitHub token saved.'); return; }
+  if (!editSpecId)  { showErr('manual','No specialty loaded.'); return; }
+
+  const spec  = SPECIALTIES.find(s => s.id === editSpecId);
+  const label = spec?.label || editSpecId;
+  const mod   = spec?.module || '';
+
+  setLoading('manual', true, 'Committing to GitHub…');
+
+  // Build the HTML file content
+  const LETTERS = ['A','B','C','D','E'];
+  const qBlocks = editQuestions.map(q => {
+    const optsHtml = q.options.map((opt,oi) =>
+      opt ? `      <li data-index="${oi}">${LETTERS[oi]}. ${escHtml(opt)}</li>` : ''
+    ).filter(Boolean).join('\n');
+    const imgHtml = q.image ? `    <div class="q-image"><img src="${escHtml(q.image)}" alt="Question image"/></div>` : '';
+    const expHtml = q.explanation?.trim() ? `    <div class="q-explanation">${escHtml(q.explanation)}</div>` : '';
+    return `  <div class="question" data-correct="${q.correct_index??0}">
+    <div class="q-stem">${escHtml(q.stem||'')}</div>
+${imgHtml}    <ul class="q-options">
+${optsHtml}
+    </ul>
+${expHtml}  </div>`;
+  }).join('\n\n');
+
+  const fileContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>${label} SBAs – UCL Y5</title>
+<meta name="specialty-id" content="${editSpecId}"/>
+<meta name="specialty-label" content="${label}"/>
+<meta name="module" content="${mod}"/>
+<meta name="question-count" content="${editQuestions.length}"/>
+</head>
+<body>
+<div id="sba-data">
+
+${qBlocks}
+
+</div>
+</body>
+</html>`;
+
+  // Base64 encode
+  const encoded = btoa(unescape(encodeURIComponent(fileContent)));
+  const path    = `data/sba/${editSpecId}.html`;
+  const apiUrl  = `https://api.github.com/repos/${repo}/contents/${path}`;
+
+  const body = {
+    message: `Update ${editSpecId}.html — ${editQuestions.length} questions`,
+    content: encoded,
+    sha: repoFileSHA,
+  };
+
+  try {
+    const resp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || 'GitHub API error ' + resp.status);
+    }
+
+    const result = await resp.json();
+    repoFileSHA  = result.content.sha; // update SHA for next commit
+    setLoading('manual', false);
+    document.getElementById('commit-msg').textContent = `✓ Committed! ${editQuestions.length} questions in ${editSpecId}.html — GitHub Actions will redeploy in ~60s`;
+    showToast('Committed to GitHub successfully');
+  } catch(err) {
+    setLoading('manual', false);
+    showErr('manual', 'Commit failed: ' + err.message);
+  }
+}
 </script>
 </body>
 </html>
