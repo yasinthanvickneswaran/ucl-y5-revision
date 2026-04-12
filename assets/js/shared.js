@@ -25,19 +25,14 @@ const MODULE_LABELS = { a: 'Module A', b: 'Module B', c: 'Module C', gp: 'GP' };
 
 /* ── Resolve base URL (works on GitHub Pages and locally) ── */
 function baseURL() {
-  // Walk up from current page to find repo root (where /data/sba/ lives)
-  const loc  = window.location;
-  const path = loc.pathname;
-  // Strip known sub-paths
-  const strip = ['/specialties/', '/sba/', '/timetable/', '/weaknesses/', '/admin/'];
-  let base = path;
-  for (const s of strip) {
-    const idx = path.indexOf(s);
-    if (idx !== -1) { base = path.slice(0, idx + 1); break; }
+  const path = window.location.pathname;
+  const knownDirs = ['/specialties/', '/sba/', '/timetable/', '/weaknesses/', '/admin/', '/settings/'];
+  for (const dir of knownDirs) {
+    const idx = path.indexOf(dir);
+    if (idx !== -1) return window.location.origin + path.slice(0, idx + 1);
   }
-  // Remove trailing filename if present
-  if (base.endsWith('.html')) base = base.slice(0, base.lastIndexOf('/') + 1);
-  return loc.origin + base;
+  const lastSlash = path.lastIndexOf('/');
+  return window.location.origin + path.slice(0, lastSlash + 1);
 }
 
 /* ═══════════════════════════════════════════════════════════════
