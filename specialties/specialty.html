@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Specialty – UCL Y5</title>
+<link rel="stylesheet" href="../assets/css/style.css"/>
+<style>
+/* ── Header ── */
+.spec-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1.5rem; }
+.spec-header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+
+.stat-row-sm { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.stat-sm { background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; padding: 8px 14px; text-align: center; }
+.stat-sm-n { font-size: 1.2rem; font-weight: 700; }
+.stat-sm-l { font-size: 0.65rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── Tabs ── */
+.tab-nav { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: 1.5rem; gap: 0; }
+.tab-btn { padding: 9px 18px; font-size: 0.83rem; cursor: pointer; color: var(--text2); border: none; border-bottom: 2px solid transparent; background: none; transition: color 0.15s; font-family: inherit; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Notes tab ── */
+.notes-upload-zone {
+  border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 2.5rem 1.5rem;
+  text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  background: var(--surface);
+}
+.notes-upload-zone:hover, .notes-upload-zone.drag-over { border-color: var(--purple); background: var(--purple-bg); }
+.notes-upload-zone p { font-size: 0.875rem; color: var(--text2); margin-top: 0.5rem; }
+.notes-upload-zone small { font-size: 0.75rem; color: var(--text3); margin-top: 0.25rem; display: block; }
+
+.notes-viewer {
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.notes-toolbar {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  border-bottom: 0.5px solid var(--border); background: var(--surface2); flex-wrap: wrap; gap: 8px;
+}
+.notes-toolbar span { font-size: 0.78rem; color: var(--text2); font-weight: 500; }
+.notes-frame {
+  width: 100%; border: none; min-height: 600px; display: block;
+}
+.notes-search { display: flex; gap: 8px; align-items: center; }
+.notes-search input { width: 180px; padding: 4px 9px; font-size: 0.78rem; }
+
+/* ── SBA Quiz tab ── */
+.quiz-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.quiz-toolbar h3 { flex: 1; font-size: 1rem; font-weight: 600; }
+
+.score-banner {
+  border-radius: var(--radius-lg); padding: 1.1rem 1.4rem; margin-bottom: 1.25rem;
+  display: none; text-align: center;
+}
+.score-banner.good { background: var(--teal-bg); border: 0.5px solid var(--teal); }
+.score-banner.ok   { background: var(--amber-bg); border: 0.5px solid #EF9F27; }
+.score-banner.low  { background: var(--red-bg);   border: 0.5px solid #e24b4a; }
+.score-banner h2   { font-size: 1.6rem; font-weight: 800; }
+.score-banner p    { font-size: 0.83rem; color: var(--text2); margin-top: 4px; }
+
+.sba-q-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.2rem; margin-bottom: 1rem; }
+.q-label { font-size: 0.68rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.q-stem { font-size: 0.9rem; line-height: 1.6; margin-bottom: 1rem; font-weight: 500; }
+.q-opts { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.75rem; }
+.q-opts li {
+  padding: 9px 13px; border: 0.5px solid var(--border); border-radius: 8px;
+  font-size: 0.83rem; cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  display: flex; gap: 9px; align-items: flex-start; user-select: none;
+}
+.q-opts li .ltr { font-weight: 700; color: var(--text3); flex-shrink: 0; width: 16px; }
+.q-opts li:hover:not(.locked) { background: var(--surface2); border-color: var(--border2); }
+.q-opts li.correct { background: var(--teal-bg); border-color: var(--teal); }
+.q-opts li.correct .ltr { color: var(--teal); }
+.q-opts li.wrong   { background: var(--red-bg);  border-color: #e24b4a; }
+.q-opts li.wrong .ltr { color: var(--red); }
+.q-opts li.reveal  { background: var(--teal-bg); border-color: var(--teal); opacity: 0.65; }
+.q-opts li.reveal .ltr { color: var(--teal); }
+.q-exp {
+  display: none; font-size: 0.8rem; color: var(--text2); background: var(--surface2);
+  border-left: 3px solid var(--purple); border-radius: 0 8px 8px 0; padding: 9px 13px;
+  margin-top: 0.5rem; line-height: 1.6;
+}
+.q-footer { display: flex; gap: 8px; align-items: center; padding-top: 10px; border-top: 0.5px solid var(--border); margin-top: 10px; flex-wrap: wrap; }
+.flag-topic-input { flex: 1; min-width: 140px; font-size: 0.78rem; padding: 5px 9px; }
+
+/* ── Weaknesses tab ── */
+.weakness-section { margin-bottom: 1.75rem; }
+.weakness-section h3 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
+.weakness-section h3::after { content:''; flex:1; height:0.5px; background:var(--border); }
+
+.wrong-item {
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px;
+  padding: 0.875rem 1rem; margin-bottom: 0.625rem;
+}
+.wrong-item .wi-stem { font-size: 0.83rem; font-weight: 500; margin-bottom: 4px; line-height: 1.5; }
+.wrong-item .wi-meta { font-size: 0.72rem; color: var(--text3); display: flex; gap: 10px; flex-wrap: wrap; }
+.wi-correct { color: var(--teal); }
+.wi-chosen  { color: var(--red); }
+
+.flag-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px;
+  padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+}
+.flag-item span { font-size: 0.84rem; }
+.flag-add-row { display: flex; gap: 8px; margin-top: 0.75rem; }
+.flag-add-row input { flex: 1; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">UCL <span>Y5</span></a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../timetable/index.html">Timetable</a></li>
+      <li><a href="../specialties/index.html" class="active">Specialties</a></li>
+      <li><a href="../sba/index.html">SBA Bank</a></li>
+      <li><a href="../weaknesses/index.html">Weaknesses</a></li>
+    </ul>
+    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <a href="index.html" style="font-size:0.8rem;color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:1rem">← All specialties</a>
+  <div id="page-body">Loading...</div>
+</div>
+
+<div id="toast"></div>
+<script src="../assets/js/shared.js"></script>
+<script>
+const params  = new URLSearchParams(location.search);
+const specId  = params.get('id');
+const initTab = params.get('tab') || 'notes';
+const spec    = SPECIALTIES.find(s => s.id === specId);
+
+if (!spec) {
+  document.getElementById('page-body').innerHTML = '<div class="empty-state"><h2>Specialty not found</h2><a href="index.html" class="btn">Back</a></div>';
+} else {
+  document.title = spec.label + ' – UCL Y5';
+  boot();
+}
+
+function boot() {
+  const sbas   = Store.getSBAs(specId);
+  const stats  = Store.getQuizStats(specId);
+  const acc    = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : null;
+  const flags  = Store.getWeaknessFlags()[specId] || [];
+
+  document.getElementById('page-body').innerHTML = `
+    <div class="spec-header">
+      <div>
+        <h1>${spec.label}</h1>
+        <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag tag-${spec.module}">${MODULE_LABELS[spec.module]}</span>
+          <span class="tag" style="background:var(--surface2);color:var(--text2)">${spec.conditions} core conditions</span>
+        </div>
+      </div>
+      <a href="../admin/index.html?spec=${specId}" class="btn btn-primary">✨ Generate SBAs</a>
+    </div>
+
+    <div class="stat-row-sm">
+      <div class="stat-sm"><div class="stat-sm-n">${sbas.length}</div><div class="stat-sm-l">SBAs saved</div></div>
+      <div class="stat-sm"><div class="stat-sm-n">${stats.answered}</div><div class="stat-sm-l">answered</div></div>
+      <div class="stat-sm"><div class="stat-sm-n" style="${acc!==null&&acc<60?'color:var(--red)':acc!==null&&acc>=80?'color:var(--teal)':''}">${acc !== null ? acc+'%' : '—'}</div><div class="stat-sm-l">accuracy</div></div>
+      <div class="stat-sm"><div class="stat-sm-n">${stats.wrong ? stats.wrong.length : 0}</div><div class="stat-sm-l">recent wrong</div></div>
+      <div class="stat-sm"><div class="stat-sm-n" style="color:var(--red)">${flags.length}</div><div class="stat-sm-l">flags</div></div>
+    </div>
+
+    <div class="tab-nav">
+      <button class="tab-btn${initTab==='notes'?' active':''}" onclick="switchTab('notes',this)">📄 Notes</button>
+      <button class="tab-btn${initTab==='sba'?' active':''}" onclick="switchTab('sba',this)">🧠 SBA Quiz</button>
+      <button class="tab-btn${initTab==='weak'?' active':''}" onclick="switchTab('weak',this)">⚠ Weaknesses</button>
+    </div>
+
+    <div id="tab-notes"  class="tab-panel${initTab==='notes'?' active':''}"></div>
+    <div id="tab-sba"    class="tab-panel${initTab==='sba'?' active':''}"></div>
+    <div id="tab-weak"   class="tab-panel${initTab==='weak'?' active':''}"></div>
+  `;
+
+  renderNotes();
+  renderSBA();
+  renderWeaknesses();
+}
+
+/* ─────────────────────────────────────────────
+   TAB SWITCHING
+───────────────────────────────────────────── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['notes','sba','weak'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t === name);
+  });
+}
+
+/* ─────────────────────────────────────────────
+   NOTES TAB
+───────────────────────────────────────────── */
+function renderNotes() {
+  const panel = document.getElementById('tab-notes');
+  const html  = Store.getNotesHTML(specId);
+
+  if (!html) {
+    panel.innerHTML = `
+      <div class="notes-upload-zone" id="drop-zone" onclick="document.getElementById('notes-file').click()">
+        <div style="font-size:2rem">📄</div>
+        <p>Drop your notes here, or click to upload</p>
+        <small>Accepts Google Docs HTML export, UpNote HTML export, or plain .txt files</small>
+      </div>
+      <input type="file" id="notes-file" accept=".html,.htm,.txt" style="display:none" onchange="handleNotesFile(this)"/>
+      <div style="margin-top:1rem;text-align:center">
+        <p style="font-size:0.78rem;color:var(--text3);margin-bottom:8px">Or paste plain text:</p>
+        <textarea id="notes-paste" style="width:100%;min-height:120px;font-size:0.83rem;padding:10px;border:0.5px solid var(--border2);border-radius:8px;font-family:inherit" placeholder="Paste your notes here..."></textarea>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="savePastedNotes()">Save notes</button>
+      </div>`;
+
+    // Drag and drop
+    const dz = panel.querySelector('#drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) readNotesFile(file);
+    });
+  } else {
+    panel.innerHTML = `
+      <div class="notes-viewer">
+        <div class="notes-toolbar">
+          <span>📄 ${spec.label} notes</span>
+          <div class="notes-search">
+            <input type="text" id="notes-search" placeholder="Search notes..." oninput="searchNotes(this.value)"/>
+            <button class="btn btn-sm" onclick="replaceNotes()">Replace notes</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteNotes()">Delete</button>
+          </div>
+        </div>
+        <iframe id="notes-frame" class="notes-frame" sandbox="allow-same-origin allow-popups-to-escape-sandbox"></iframe>
+      </div>`;
+    renderNotesFrame(html);
+  }
+}
+
+function renderNotesFrame(html) {
+  const frame = document.getElementById('notes-frame');
+  if (!frame) return;
+  const styled = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.7; color: #1a1a18; padding: 1.5rem 2rem; max-width: 860px; margin: 0 auto; }
+  h1,h2,h3,h4 { font-weight: 600; margin: 1.25rem 0 0.5rem; line-height: 1.3; }
+  h1 { font-size: 1.4rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
+  p { margin: 0.5rem 0; }
+  ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+  li { margin: 0.2rem 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+  th { background: #f5f4f0; font-weight: 600; }
+  code { background: #f0efeb; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  blockquote { border-left: 3px solid #534AB7; margin: 1rem 0; padding: 0.5rem 1rem; background: #f5f4f0; color: #444; }
+  mark, .highlight { background: #fffbe6; }
+  a { color: #534AB7; }
+  img { max-width: 100%; height: auto; }
+  .search-highlight { background: #fffbe6; border-radius: 2px; }
+</style></head><body>${sanitiseHTML(html)}</body></html>`;
+  frame.srcdoc = styled;
+
+  // Auto-resize
+  frame.onload = () => {
+    try {
+      const h = frame.contentDocument.body.scrollHeight;
+      frame.style.height = Math.max(400, h + 40) + 'px';
+    } catch {}
+  };
+}
+
+function searchNotes(query) {
+  const frame = document.getElementById('notes-frame');
+  if (!frame || !frame.contentDocument) return;
+  try {
+    frame.contentDocument.querySelectorAll('.search-highlight').forEach(el => {
+      el.outerHTML = el.textContent;
+    });
+    if (!query.trim()) return;
+    const body = frame.contentDocument.body;
+    const walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walk.nextNode()) nodes.push(walk.currentNode);
+    const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    nodes.forEach(node => {
+      if (re.test(node.textContent)) {
+        const span = frame.contentDocument.createElement('span');
+        span.innerHTML = node.textContent.replace(re, m => `<mark class="search-highlight">${m}</mark>`);
+        node.parentNode.replaceChild(span, node);
+      }
+    });
+  } catch {}
+}
+
+function handleNotesFile(input) {
+  const file = input.files[0];
+  if (file) readNotesFile(file);
+}
+
+function readNotesFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const html = file.name.endsWith('.txt')
+      ? e.target.result.replace(/\n/g,'<br>').replace(/  /g,'&nbsp;&nbsp;')
+      : e.target.result;
+    Store.saveNotesHTML(specId, html);
+    Store.saveNotes(specId, file.name.endsWith('.txt') ? e.target.result : ''); // plain text for admin
+    showToast('Notes saved for ' + spec.label);
+    renderNotes();
+  };
+  reader.readAsText(file);
+}
+
+function savePastedNotes() {
+  const text = document.getElementById('notes-paste').value.trim();
+  if (!text) return;
+  const html = text.replace(/\n/g,'<br>').replace(/  /g,'&nbsp;&nbsp;');
+  Store.saveNotesHTML(specId, html);
+  Store.saveNotes(specId, text);
+  showToast('Notes saved');
+  renderNotes();
+}
+
+function replaceNotes() {
+  if (!confirm('Replace existing notes?')) return;
+  Store.saveNotesHTML(specId, '');
+  renderNotes();
+}
+
+function deleteNotes() {
+  if (!confirm('Delete notes for ' + spec.label + '?')) return;
+  Store.saveNotesHTML(specId, '');
+  showToast('Notes deleted');
+  renderNotes();
+}
+
+/* ─────────────────────────────────────────────
+   SBA QUIZ TAB
+───────────────────────────────────────────── */
+let quizMode   = false;
+let quizScore  = 0;
+let quizTotal  = 0;
+
+function renderSBA() {
+  const panel = document.getElementById('tab-sba');
+  const sbas  = Store.getSBAs(specId);
+  const stats = Store.getQuizStats(specId);
+  const acc   = stats.answered > 0 ? Math.round(stats.correct / stats.answered * 100) : null;
+
+  if (!sbas.length) {
+    panel.innerHTML = `
+      <div class="empty-state">
+        <h2>No SBAs yet for ${spec.label}</h2>
+        <p>Go to the Admin panel to generate questions from your notes.</p>
+        <a href="../admin/index.html?spec=${specId}" class="btn btn-primary" style="margin-top:1rem">Generate SBAs →</a>
+      </div>`;
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="quiz-toolbar">
+      <h3>${sbas.length} questions</h3>
+      ${acc !== null ? `<span style="font-size:0.8rem;color:var(--text2)">Lifetime accuracy: <strong style="color:${acc>=80?'var(--teal)':acc<60?'var(--red)':'var(--text)'}">${acc}%</strong> (${stats.answered} answered)</span>` : ''}
+      <button class="btn btn-primary" id="quiz-btn" onclick="startQuiz()">Start quiz</button>
+      <button class="btn btn-sm" onclick="if(confirm('Reset stats for this specialty?')){Store.clearQuizStats(specId);renderSBA();showToast('Stats reset');}">Reset stats</button>
+      <a href="../admin/index.html?spec=${specId}" class="btn btn-sm">+ Add more</a>
+    </div>
+    <div id="score-banner" class="score-banner"></div>
+    <div id="q-list"></div>`;
+
+  renderQList(false);
+}
+
+function renderQList(quiz) {
+  const list = document.getElementById('q-list');
+  const sbas = Store.getSBAs(specId);
+  list.innerHTML = '';
+  quizScore = 0; quizTotal = 0;
+  const letters = ['A','B','C','D','E'];
+
+  sbas.forEach((q, qi) => {
+    const card = document.createElement('div');
+    card.className = 'sba-q-card'; card.dataset.qi = qi;
+
+    const optsHtml = q.options.map((opt, oi) => `
+      <li data-oi="${oi}" onclick="answerQ(this,${qi},${oi})">
+        <span class="ltr">${letters[oi]}.</span><span>${opt}</span>
+      </li>`).join('');
+
+    const correctLabel = q.options[q.correct_index ?? q.correctIndex ?? 0] || '';
+
+    card.innerHTML = `
+      <div class="q-label">
+        <span>Question ${qi+1} of ${sbas.length}</span>
+        ${!quiz ? `<div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="editQ(${qi})">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteQ(${qi})">Delete</button></div>` : ''}
+      </div>
+      <div class="q-stem">${q.stem}</div>
+      <ul class="q-opts">${optsHtml}</ul>
+      <div class="q-exp" id="exp-${qi}">${q.explanation || ''}</div>
+      ${!quiz ? `
+      <div class="q-footer">
+        <input type="text" class="flag-topic-input" placeholder="Flag a topic as weak (e.g. pre-eclampsia management)..." id="flag-input-${qi}"/>
+        <button class="btn btn-sm" style="color:var(--red)" onclick="flagTopic(${qi})">⚑ Flag topic</button>
+      </div>` : ''}`;
+    list.appendChild(card);
+  });
+}
+
+function answerQ(li, qi, oi) {
+  const card = document.querySelector(`[data-qi="${qi}"]`);
+  const opts = card.querySelectorAll('.q-opts li');
+  if (opts[0].classList.contains('locked')) return;
+  opts.forEach(o => o.classList.add('locked'));
+
+  const q       = Store.getSBAs(specId)[qi];
+  const correct = q.correct_index ?? q.correctIndex ?? 0;
+  const isRight = oi === correct;
+  const letters = ['A','B','C','D','E'];
+
+  if (isRight) {
+    li.classList.add('correct');
+  } else {
+    li.classList.add('wrong');
+    opts[correct].classList.add('reveal');
+  }
+
+  const exp = document.getElementById('exp-' + qi);
+  if (exp && exp.textContent.trim()) exp.style.display = 'block';
+
+  // Record to stats
+  Store.recordAnswer(specId, isRight, isRight ? null : {
+    stem: q.stem.substring(0, 120),
+    correct_label: letters[correct] + '. ' + (q.options[correct] || ''),
+    chosen_label:  letters[oi]      + '. ' + (q.options[oi] || ''),
+    ts: Date.now()
+  });
+
+  if (quizMode) {
+    quizTotal++;
+    if (isRight) quizScore++;
+    if (quizTotal === Store.getSBAs(specId).length) showQuizScore();
+  }
+}
+
+function startQuiz() {
+  quizMode = true; quizScore = 0; quizTotal = 0;
+  const btn = document.getElementById('quiz-btn');
+  btn.textContent = 'End quiz';
+  btn.onclick = endQuiz;
+  document.getElementById('score-banner').style.display = 'none';
+  renderQList(true);
+}
+
+function endQuiz() {
+  quizMode = false;
+  const btn = document.getElementById('quiz-btn');
+  btn.textContent = 'Start quiz';
+  btn.onclick = startQuiz;
+  showQuizScore();
+  renderSBA();
+}
+
+function showQuizScore() {
+  const total  = Store.getSBAs(specId).length;
+  const pct    = total > 0 ? Math.round(quizScore / total * 100) : 0;
+  const banner = document.getElementById('score-banner');
+  if (!banner) return;
+  banner.className = 'score-banner ' + (pct >= 80 ? 'good' : pct >= 60 ? 'ok' : 'low');
+  const emoji = pct >= 80 ? '🎯' : pct >= 60 ? '👍' : '📖';
+  banner.innerHTML = `<h2>${emoji} ${quizScore} / ${total} &nbsp;(${pct}%)</h2><p>${pct>=80?'Excellent — at or above target!':pct>=60?'Good — review the questions you missed.':'This topic needs more work — revisit your notes.'}</p>`;
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function deleteQ(qi) {
+  if (!confirm('Delete this question?')) return;
+  const qs = Store.getSBAs(specId);
+  qs.splice(qi, 1);
+  Store.saveSBAs(specId, qs);
+  showToast('Question deleted');
+  renderSBA();
+}
+
+function editQ(qi) {
+  const q   = Store.getSBAs(specId)[qi];
+  const enc = encodeURIComponent(JSON.stringify({ qi, q }));
+  location.href = `../admin/index.html?spec=${specId}&edit=${enc}`;
+}
+
+function flagTopic(qi) {
+  const inp = document.getElementById('flag-input-' + qi);
+  const topic = inp ? inp.value.trim() : '';
+  if (!topic) { showToast('Enter a topic to flag'); return; }
+  Store.addWeaknessFlag(specId, topic);
+  inp.value = '';
+  showToast('Flagged: ' + topic);
+  renderWeaknesses();
+}
+
+/* ─────────────────────────────────────────────
+   WEAKNESSES TAB
+───────────────────────────────────────────── */
+function renderWeaknesses() {
+  const panel  = document.getElementById('tab-weak');
+  const stats  = Store.getQuizStats(specId);
+  const flags  = Store.getWeaknessFlags()[specId] || [];
+  const wrongs = stats.wrong || [];
+
+  let html = '';
+
+  // Performance section
+  html += `<div class="weakness-section">
+    <h3>Quiz — recent wrong answers (${wrongs.length})</h3>`;
+  if (!wrongs.length) {
+    html += '<p style="font-size:0.83rem;color:var(--text3)">No wrong answers recorded yet — answer some questions to see analysis here.</p>';
+  } else {
+    wrongs.slice(0, 20).forEach(w => {
+      const date = w.ts ? new Date(w.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+      html += `<div class="wrong-item">
+        <div class="wi-stem">${w.stem}${w.stem.length >= 120 ? '…' : ''}</div>
+        <div class="wi-meta">
+          <span class="wi-correct">✓ ${w.correct_label}</span>
+          <span class="wi-chosen">✗ ${w.chosen_label}</span>
+          ${date ? `<span>${date}</span>` : ''}
+        </div>
+      </div>`;
+    });
+  }
+  html += '</div>';
+
+  // Manual flags section
+  html += `<div class="weakness-section">
+    <h3>Manually flagged topics (${flags.length})</h3>`;
+  if (!flags.length) {
+    html += '<p style="font-size:0.83rem;color:var(--text3)">No topics flagged yet. You can flag topics from within the SBA Quiz tab while answering questions.</p>';
+  } else {
+    flags.forEach(f => {
+      html += `<div class="flag-item">
+        <span>${f}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeFlag('${f.replace(/'/g,"\\'")}')">Remove</button>
+      </div>`;
+    });
+  }
+  html += `
+    <div class="flag-add-row">
+      <input type="text" id="new-flag-input" placeholder="Add a topic to flag as weak..." />
+      <button class="btn btn-primary" onclick="addFlagManual()">Add flag</button>
+    </div>
+  </div>`;
+
+  panel.innerHTML = html;
+}
+
+function addFlagManual() {
+  const inp = document.getElementById('new-flag-input');
+  const topic = inp ? inp.value.trim() : '';
+  if (!topic) return;
+  Store.addWeaknessFlag(specId, topic);
+  inp.value = '';
+  showToast('Flagged: ' + topic);
+  renderWeaknesses();
+}
+
+function removeFlag(topic) {
+  Store.removeWeaknessFlag(specId, topic);
+  showToast('Flag removed');
+  renderWeaknesses();
+}
+</script>
+</body>
+</html>

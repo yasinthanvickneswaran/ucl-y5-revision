@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Weaknesses – UCL Y5</title>
+<link rel="stylesheet" href="../assets/css/style.css"/>
+<style>
+/* Ring chart */
+.ring-container { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.ring-box { text-align: center; }
+.ring-box svg { display: block; margin: 0 auto 8px; }
+.ring-label { font-size: 0.78rem; color: var(--text2); }
+.ring-pct { font-size: 1.3rem; font-weight: 800; }
+
+/* Ranked list */
+.ranked-list { display: flex; flex-direction: column; gap: 8px; }
+.rank-item {
+  background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem; display: flex; align-items: center; gap: 14px;
+  text-decoration: none; color: var(--text); transition: border-color 0.15s;
+}
+.rank-item:hover { border-color: var(--purple); }
+.rank-num { font-size: 1.3rem; font-weight: 800; color: var(--text3); min-width: 28px; }
+.rank-body { flex: 1; }
+.rank-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 3px; }
+.rank-detail { font-size: 0.75rem; color: var(--text2); display: flex; gap: 10px; flex-wrap: wrap; }
+.rank-acc { font-size: 1.1rem; font-weight: 700; min-width: 48px; text-align: right; }
+.rank-bar { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.rank-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+.flag-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--red-bg); color: var(--red); font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; margin: 2px; font-weight: 500; }
+.flag-chip button { background: none; border: none; cursor: pointer; color: var(--red); font-size: 0.7rem; padding: 0; line-height: 1; }
+
+.suggestion-box {
+  background: var(--purple-bg); border: 0.5px solid var(--purple); border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem; margin-bottom: 1.5rem;
+}
+.suggestion-box h3 { font-size: 0.85rem; font-weight: 700; color: var(--purple-dark); margin-bottom: 0.75rem; }
+.suggestion-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.suggestion-list li { font-size: 0.83rem; color: var(--purple-dark); display: flex; gap: 8px; align-items: flex-start; }
+.suggestion-list li::before { content: '→'; flex-shrink: 0; color: var(--purple); }
+
+.section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin: 1.75rem 0 0.75rem; display: flex; align-items: center; gap: 8px; }
+.section-title::after { content:''; flex:1; height:0.5px; background:var(--border); }
+
+/* Progress ring SVG */
+.prog-ring-track { fill: none; stroke: var(--surface2); }
+.prog-ring-fill  { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.7s ease; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">UCL <span>Y5</span></a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../timetable/index.html">Timetable</a></li>
+      <li><a href="../specialties/index.html">Specialties</a></li>
+      <li><a href="../sba/index.html">SBA Bank</a></li>
+      <li><a href="index.html" class="active">Weaknesses</a></li>
+    </ul>
+    <a class="nav-admin" href="../admin/index.html">⚙ Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Weaknesses &amp; Progress</h1>
+    <p>Ranked by accuracy. Combines quiz performance with topics you've manually flagged.</p>
+  </div>
+
+  <div id="main"></div>
+</div>
+
+<div id="toast"></div>
+<script src="../assets/js/shared.js"></script>
+<script>
+function render() {
+  const prog  = getGlobalProgress();
+  const flags = Store.getWeaknessFlags();
+  const allFlags = Object.entries(flags).flatMap(([id, fs]) => fs.map(f => ({ specId: id, topic: f })));
+
+  // Build per-specialty data
+  const specData = SPECIALTIES.map(s => {
+    const st   = Store.getQuizStats(s.id);
+    const acc  = st.answered > 0 ? Math.round(st.correct / st.answered * 100) : null;
+    const fl   = flags[s.id] || [];
+    const sbas = Store.getSBAs(s.id).length;
+    return { ...s, stats: st, acc, flags: fl, sbas };
+  });
+
+  // Sort: those with data first, ranked by acc asc (weakest first); no data at end
+  const withData    = specData.filter(s => s.acc !== null).sort((a,b) => a.acc - b.acc);
+  const withFlags   = specData.filter(s => s.acc === null && s.flags.length > 0);
+  const withNothing = specData.filter(s => s.acc === null && s.flags.length === 0);
+  const ranked = [...withData, ...withFlags, ...withNothing];
+
+  // Suggestions
+  const suggestions = [];
+  const weakest = withData.filter(s => s.acc < 60);
+  const moderate = withData.filter(s => s.acc >= 60 && s.acc < 75);
+  if (weakest.length) suggestions.push(`Priority revision: <strong>${weakest.map(s=>s.label).join(', ')}</strong> — accuracy below 60%`);
+  if (moderate.length) suggestions.push(`Consolidation needed: ${moderate.map(s=>s.label).join(', ')} — aim to push above 75%`);
+  if (allFlags.length) suggestions.push(`You have ${allFlags.length} manually flagged topics across ${Object.keys(flags).filter(k=>flags[k].length>0).length} specialties — revisit these before your OSCEs`);
+  const noSBAs = specData.filter(s => s.sbas === 0);
+  if (noSBAs.length) suggestions.push(`No SBAs yet for: ${noSBAs.map(s=>s.label).join(', ')} — generate questions to start tracking progress`);
+  if (!suggestions.length) suggestions.push('Looking good! Keep practising to maintain accuracy above 80% across all specialties.');
+
+  const circum = 2 * Math.PI * 40;
+  const offset = circum - (prog.pct / 100) * circum;
+  const ringColour = prog.pct >= 80 ? 'var(--teal)' : prog.pct >= 60 ? '#EF9F27' : 'var(--red)';
+
+  let html = `
+  <!-- Overall ring + stats -->
+  <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.5rem;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;justify-content:center;position:relative;width:100px;height:100px;flex-shrink:0">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle class="prog-ring-track" cx="50" cy="50" r="40" stroke-width="8" transform="rotate(-90 50 50)"/>
+        <circle class="prog-ring-fill" cx="50" cy="50" r="40" stroke-width="8"
+          stroke="${ringColour}"
+          stroke-dasharray="${circum.toFixed(1)}"
+          stroke-dashoffset="${offset.toFixed(1)}"
+          transform="rotate(-90 50 50)"/>
+      </svg>
+      <div style="position:absolute;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:${ringColour}">${prog.pct}%</div>
+        <div style="font-size:0.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em">accuracy</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;flex:1">
+      <div class="stat-tile"><div class="stat-n">${prog.totalAnswered}</div><div class="stat-l">answered</div></div>
+      <div class="stat-tile"><div class="stat-n">${prog.totalCorrect}</div><div class="stat-l">correct</div></div>
+      <div class="stat-tile"><div class="stat-n">${prog.totalAnswered - prog.totalCorrect}</div><div class="stat-l">wrong</div></div>
+      <div class="stat-tile"><div class="stat-n">${allFlags.length}</div><div class="stat-l">flags</div></div>
+      <div class="stat-tile"><div class="stat-n">${withData.length}</div><div class="stat-l">specialties practised</div></div>
+    </div>
+  </div>
+
+  <!-- Suggestions -->
+  <div class="suggestion-box">
+    <h3>📋 Recommendations</h3>
+    <ul class="suggestion-list">
+      ${suggestions.map(s => `<li>${s}</li>`).join('')}
+    </ul>
+  </div>`;
+
+  // Ranked specialties
+  html += `<div class="section-title">Specialties ranked by weakness</div><div class="ranked-list">`;
+  ranked.forEach((s, i) => {
+    const acc   = s.acc;
+    const colour = acc === null ? 'var(--border2)' : acc < 60 ? 'var(--red)' : acc < 80 ? '#EF9F27' : 'var(--teal)';
+    const accTxt = acc !== null ? acc + '%' : '—';
+    const flagHtml = s.flags.map(f =>
+      `<span class="flag-chip">${f}<button onclick="rmFlag('${s.id}','${f.replace(/'/g,"\\'")}');event.preventDefault()">✕</button></span>`
+    ).join('');
+
+    html += `<a class="rank-item" href="../specialties/specialty.html?id=${s.id}">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-body">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span class="rank-name">${s.label}</span>
+          <span class="tag tag-${s.module}">${MODULE_LABELS[s.module]}</span>
+        </div>
+        <div class="rank-detail">
+          <span>${s.sbas} SBAs</span>
+          <span>${s.stats.answered} answered</span>
+          ${acc !== null ? `<span style="color:${colour};font-weight:600">${s.stats.correct}/${s.stats.answered} correct</span>` : '<span style="color:var(--text3)">No quiz data yet</span>'}
+        </div>
+        ${s.flags.length ? `<div style="margin-top:6px">${flagHtml}</div>` : ''}
+        <div class="rank-bar"><div class="rank-fill" style="width:${acc !== null ? acc : 0}%;background:${colour}"></div></div>
+      </div>
+      <div class="rank-acc" style="color:${colour}">${accTxt}</div>
+    </a>`;
+  });
+  html += '</div>';
+
+  // All flagged topics section
+  if (allFlags.length) {
+    html += `<div class="section-title">All manually flagged topics (${allFlags.length})</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem">`;
+    allFlags.forEach(({ specId: sid, topic }) => {
+      const specLabel = SPECIALTIES.find(s => s.id === sid)?.label || sid;
+      html += `<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:0.8rem;display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text3);font-size:0.7rem">${specLabel}</span>
+        <span>${topic}</span>
+        <button class="btn btn-sm btn-danger" style="padding:2px 7px" onclick="rmFlag('${sid}','${topic.replace(/'/g,"\\'")}')">✕</button>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function rmFlag(specId, topic) {
+  Store.removeWeaknessFlag(specId, topic);
+  showToast('Flag removed');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
