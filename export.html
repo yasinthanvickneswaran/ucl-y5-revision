@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UCL Y5 — Export Data</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a18; padding: 2rem 1rem; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.4rem; }
+  p { font-size: 0.875rem; color: #6b6b66; line-height: 1.6; margin-bottom: 1.25rem; }
+  .card { background: #fff; border: 0.5px solid #ddddd8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h2 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px; margin-bottom: 1rem; }
+  .stat { background: #f5f4f0; border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .stat-n { font-size: 1.4rem; font-weight: 800; }
+  .stat-l { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+  .spec-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 0.5px solid #f0efeb; font-size: 0.83rem; }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-n { font-weight: 700; color: #534AB7; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-size: 0.85rem; font-weight: 600; border: none; border-radius: 20px; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+  .btn-primary { background: #534AB7; color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-green { background: #1D9E75; color: #fff; }
+  .btn-green:hover { opacity: 0.88; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .success { background: #E1F5EE; border: 0.5px solid #1D9E75; border-radius: 10px; padding: 1rem 1.25rem; font-size: 0.83rem; color: #085041; display: none; margin-top: 1rem; line-height: 1.6; }
+  .warning { background: #FAEEDA; border: 0.5px solid #EF9F27; border-radius: 10px; padding: 1rem 1.25rem; font-size: 0.83rem; color: #854F0B; margin-bottom: 1rem; line-height: 1.6; }
+  code { background: #f0efeb; padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; font-family: monospace; }
+  .empty { color: #aaa; font-style: italic; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>UCL Y5 — Data Exporter</h1>
+  <p>Open this file in the <strong>same browser</strong> where your revision site data is saved. It will read everything from localStorage and let you download it.</p>
+
+  <div class="warning">
+    ⚠ This page must be opened from the <strong>same origin</strong> as your site to read its localStorage. If you're using GitHub Pages, save this file to your repo and open it at <code>https://yasinthanvickneswaran.github.io/ucl-y5-revision/export.html</code>
+  </div>
+
+  <div class="card">
+    <h2>What's in your browser</h2>
+    <div class="stat-grid" id="stat-grid"></div>
+    <div id="spec-list"></div>
+  </div>
+
+  <div class="card">
+    <h2>Export</h2>
+    <p style="margin-bottom:1rem">Download everything as a single JSON file. Keep it safe — you'll use this to migrate to the new site version.</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="exportAll()">↓ Download full export (JSON)</button>
+      <button class="btn btn-green" onclick="exportSBAsOnly()">↓ SBAs only (JSON)</button>
+    </div>
+    <div class="success" id="success-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Raw preview</h2>
+    <p style="margin-bottom:0.75rem">Paste this into the chat with Claude to convert your SBAs to the new HTML file format.</p>
+    <textarea id="raw-preview" style="width:100%;min-height:200px;font-size:0.72rem;font-family:monospace;padding:10px;border:0.5px solid #ddd;border-radius:8px;resize:vertical;background:#fafaf8" readonly></textarea>
+  </div>
+</div>
+
+<script>
+const SPECIALTIES = [
+  { id: "child-health",    label: "Child Health" },
+  { id: "camhs",           label: "CAMHS" },
+  { id: "gp",              label: "General Practice" },
+  { id: "breast",          label: "Breast" },
+  { id: "dermatology",     label: "Dermatology" },
+  { id: "sexual-health",   label: "Sexual Health & HIV" },
+  { id: "urology",         label: "Urology" },
+  { id: "obs-gynae",       label: "Obstetrics & Gynaecology" },
+  { id: "cancer",          label: "Cancer Medicine" },
+  { id: "older-person",    label: "Care of the Older Person" },
+  { id: "ophthalmology",   label: "Ophthalmology" },
+  { id: "palliative",      label: "Palliative Care" },
+  { id: "psychiatry",      label: "Psychiatry" },
+];
+
+function getSBAs(specId) {
+  try { const v = localStorage.getItem('sba_' + specId); return v ? JSON.parse(v) : []; }
+  catch { return []; }
+}
+function getChecks() {
+  try { const v = localStorage.getItem('ucl_y5_checks'); return v ? JSON.parse(v) : {}; }
+  catch { return {}; }
+}
+function getQuizStats(specId) {
+  try { const v = localStorage.getItem('qstats_' + specId); return v ? JSON.parse(v) : { answered:0, correct:0, wrong:[] }; }
+  catch { return { answered:0, correct:0, wrong:[] }; }
+}
+function getWeaknessFlags() {
+  try { const v = localStorage.getItem('weakness_flags'); return v ? JSON.parse(v) : {}; }
+  catch { return {}; }
+}
+
+function buildExport() {
+  const sbas = {};
+  let totalSBAs = 0;
+  SPECIALTIES.forEach(s => {
+    const qs = getSBAs(s.id);
+    sbas[s.id] = qs;
+    totalSBAs += qs.length;
+  });
+
+  const checks   = getChecks();
+  const checkedN = Object.values(checks).filter(Boolean).length;
+
+  const stats = {};
+  SPECIALTIES.forEach(s => { stats[s.id] = getQuizStats(s.id); });
+
+  return {
+    exported_at: new Date().toISOString(),
+    summary: { total_sbas: totalSBAs, timetable_checked: checkedN },
+    sbas,
+    timetable_checks: checks,
+    quiz_stats: stats,
+    weakness_flags: getWeaknessFlags(),
+  };
+}
+
+function render() {
+  const data = buildExport();
+
+  // Stats
+  const grid = document.getElementById('stat-grid');
+  const totalQ = data.summary.total_sbas;
+  const totalA = Object.values(data.quiz_stats).reduce((n,s) => n + s.answered, 0);
+  const totalC = Object.values(data.quiz_stats).reduce((n,s) => n + s.correct, 0);
+  const pct    = totalA > 0 ? Math.round(totalC/totalA*100) : 0;
+  grid.innerHTML = `
+    <div class="stat"><div class="stat-n">${totalQ}</div><div class="stat-l">SBAs saved</div></div>
+    <div class="stat"><div class="stat-n">${data.summary.timetable_checked}</div><div class="stat-l">timetable ticks</div></div>
+    <div class="stat"><div class="stat-n">${totalA}</div><div class="stat-l">answered</div></div>
+    <div class="stat"><div class="stat-n">${totalA>0?pct+'%':'—'}</div><div class="stat-l">accuracy</div></div>`;
+
+  // Per-specialty SBA counts
+  const list = document.getElementById('spec-list');
+  const rows = SPECIALTIES.map(s => {
+    const n = data.sbas[s.id].length;
+    return `<div class="spec-row"><span>${s.label}</span><span class="${n>0?'spec-n':'empty'}">${n>0?n+' question'+(n!==1?'s':''):'no questions'}</span></div>`;
+  }).join('');
+  list.innerHTML = rows;
+
+  // Raw JSON preview (SBAs only, formatted)
+  document.getElementById('raw-preview').value = JSON.stringify(data.sbas, null, 2);
+}
+
+function download(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  const msg = document.getElementById('success-msg');
+  msg.style.display = 'block';
+  msg.innerHTML = `✓ Downloaded <strong>${filename}</strong> — keep this file safe. You can paste the SBA JSON directly into a chat with Claude and ask it to convert each specialty into the new HTML format.`;
+}
+
+function exportAll() {
+  const data = buildExport();
+  download('ucl_y5_full_export_' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(data, null, 2), 'application/json');
+}
+
+function exportSBAsOnly() {
+  const data = buildExport();
+  download('ucl_y5_sbas_' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(data.sbas, null, 2), 'application/json');
+}
+
+render();
+</script>
+</body>
+</html>
